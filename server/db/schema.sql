@@ -1,0 +1,74 @@
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  timezone TEXT DEFAULT 'UTC',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS characters (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  gender TEXT DEFAULT 'MALE', -- MALE, FEMALE
+  skin_color TEXT DEFAULT '#F5D0A9',
+  clothing_json TEXT DEFAULT '{}',
+  level INTEGER DEFAULT 1,
+  xp INTEGER DEFAULT 0,
+  hp INTEGER DEFAULT 100,
+  max_hp INTEGER DEFAULT 100,
+  coins INTEGER DEFAULT 0,
+  stats_json TEXT DEFAULT '{}',
+  total_login_days INTEGER DEFAULT 0,
+  current_login_streak INTEGER DEFAULT 0,
+  days_without_activity INTEGER DEFAULT 0,
+  last_active_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  difficulty TEXT NOT NULL, -- VERY_EASY, EASY, MEDIUM, HARD, VERY_HARD
+  rewards_json TEXT DEFAULT '{}', -- {xp: 10, coins: 5}
+  penalty_json TEXT DEFAULT '{}', -- {hp: 2, coins: 5}
+  checklist_json TEXT DEFAULT '[]',
+  aspects_json TEXT DEFAULT '[]', -- ['HEALTH', 'WORK']
+  deadline DATETIME,
+  status TEXT DEFAULT 'ACTIVE', -- ACTIVE, COMPLETED, FAILED
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS habits (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  difficulty TEXT NOT NULL,
+  streak INTEGER DEFAULT 0,
+  last_completed_date DATETIME, -- YYYY-MM-DD
+  last_penalty_date DATETIME, -- YYYY-MM-DD
+  is_active BOOLEAN DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS user_activity (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  activity_type TEXT NOT NULL, -- LOGIN, ACTION
+  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS event_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  event_type TEXT NOT NULL, -- TASK_COMPLETE, HABIT_COMPLETE, LEVEL_UP, PENALTY, LOGIN
+  details_json TEXT DEFAULT '{}',
+  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);

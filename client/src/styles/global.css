@@ -1,0 +1,312 @@
+/* ══════════════════════════════════════
+   Glass Card — Base
+   ══════════════════════════════════════ */
+.glass-card {
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.08) 0%,
+            rgba(255, 255, 255, 0.03) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 30px;
+    padding: var(--space-lg);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    box-shadow:
+        0 8px 32px 0 rgba(0, 0, 0, 0.3),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), border-color 0.2s;
+}
+
+.glass-card:hover {
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.12) 0%,
+            rgba(255, 255, 255, 0.05) 100%);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.glass-card-sm {
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.08) 0%,
+            rgba(255, 255, 255, 0.03) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: var(--space-md);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    transition: border-color 0.2s, transform 0.2s;
+}
+
+/* ══════════════════════════════════════
+   Colorful Widgets (Bento Grid Style)
+   ══════════════════════════════════════ */
+.card-widget {
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    box-shadow: var(--shadow-card);
+    color: var(--text-inverse);
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.card-widget h3 {
+    color: rgba(0, 0, 0, 0.6);
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+}
+
+.card-widget .stat-value {
+    font-size: 42px;
+    font-weight: 700;
+    color: #000;
+    line-height: 1;
+}
+
+.card-widget-yellow {
+    background: var(--widget-yellow);
+}
+
+.card-widget-green {
+    background: var(--widget-green);
+}
+
+.card-widget-purple {
+    background: var(--widget-purple);
+    color: #fff;
+}
+
+/* Purple usually keeps white text */
+.card-widget-purple h3 {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.card-widget-purple .stat-value {
+    color: #fff;
+}
+
+.card-widget-blue {
+    background: var(--widget-blue);
+    color: #fff;
+}
+
+.card-widget-blue h3 {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.card-widget-blue .stat-value {
+    color: #fff;
+}
+
+/* ══════════════════════════════════════
+   Buttons
+   ══════════════════════════════════════ */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    padding: 12px 24px;
+    font-family: var(--font-main);
+    font-weight: 600;
+    font-size: 14px;
+    border-radius: var(--radius-md);
+    /* Softer buttons */
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+}
+
+.btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background: var(--text-primary);
+    color: #000;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+}
+
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 12px;
+    border-radius: 12px;
+}
+
+.btn-icon {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+/* ══════════════════════════════════════
+   Inputs
+   ══════════════════════════════════════ */
+.input {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-card);
+    color: var(--text-primary);
+    padding: 14px 18px;
+    border-radius: var(--radius-md);
+    width: 100%;
+    font-family: var(--font-main);
+    font-size: 15px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.input:focus {
+    background: rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ══════════════════════════════════════
+   Utilities
+   ══════════════════════════════════════ */
+/* ══════════════════════════════════════
+   Utilities
+   ══════════════════════════════════════ */
+.flex {
+    display: flex;
+}
+
+.flex-col {
+    flex-direction: column;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.gap-sm {
+    gap: var(--space-sm);
+}
+
+.gap-md {
+    gap: var(--space-md);
+}
+
+.gap-lg {
+    gap: var(--space-lg);
+}
+
+.w-full {
+    width: 100%;
+}
+
+.h-full {
+    height: 100%;
+}
+
+.relative {
+    position: relative;
+}
+
+/* Grid System */
+.grid-12 {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: var(--gap-grid);
+}
+
+.col-span-12 {
+    grid-column: span 12;
+}
+
+.col-span-8 {
+    grid-column: span 8;
+}
+
+.col-span-6 {
+    grid-column: span 6;
+}
+
+.col-span-4 {
+    grid-column: span 4;
+}
+
+.col-span-3 {
+    grid-column: span 3;
+}
+
+/* Badge */
+.badge {
+    padding: 4px 12px;
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.badge-outline {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Overlay & Slide-over */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+}
+
+.slide-over {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 480px;
+    background: var(--bg-primary);
+    border-left: 1px solid var(--border-card);
+    padding: 40px;
+    z-index: 201;
+}
+
+/* Empty State */
+.empty-state {
+    padding: 60px;
+    text-align: center;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: var(--radius-lg);
+    border: 1px dashed var(--border-card);
+}
