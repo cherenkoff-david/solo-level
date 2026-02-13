@@ -121,9 +121,15 @@ export default function Layout({ children }) {
                         <Settings size={20} />
                         <span className="nav-text">Settings</span>
                     </Link>
-                    <div className="version-text text-xs text-secondary opacity-50 mt-1 font-mono" style={{ paddingLeft: 52 }}>
+                    <a
+                        href="https://github.com/cherenkoff-david/solo-level"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="version-text text-xs text-secondary opacity-50 mt-1 font-mono hover:opacity-100 transition-opacity block"
+                        style={{ paddingLeft: 52 }}
+                    >
                         version {versionData.version}
-                    </div>
+                    </a>
                 </div>
             </aside>
 
