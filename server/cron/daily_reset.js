@@ -1,66 +1,124 @@
 const cron = require('node-cron');
-const db = require('../db');
+const supabase = require('../db');
 
 function startDailyJob() {
     // Run every day at 00:05
-    cron.schedule('5 0 * * *', () => {
+    cron.schedule('5 0 * * *', async () => {
         console.log('Running daily reset...');
         try {
-            runDailyReset();
+            await runDailyReset();
         } catch (e) {
             console.error('Daily reset failed:', e);
         }
     });
 }
 
-function runDailyReset() {
+async function runDailyReset() {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-    const transaction = db.transaction(() => {
-        // 1. Check Habits
-        // Find all active habits that were NOT completed yesterday
-        // AND were not created today (to give grace period)
-        const habits = db.prepare(`
-      SELECT * FROM habits 
-      WHERE is_active = 1 
-      AND (last_completed_date IS NULL OR last_completed_date < ?)
-      AND date(created_at) <= ?
-    `).all(yesterdayStr, yesterdayStr);
+    // Note: Supabase/Postgres logic for 'date' comparison might differ slightly from SQLite strings
+    // But since we use ISO strings (YYYY-MM-DD) for dates, string comparison should still work for standard columns.
+    // However, `details_json` is JSONB now.
 
-        habits.forEach(h => {
+    // 1. Check Habits
+    // Find all active habits that were NOT completed yesterday (or at all)
+    // AND were created on or before yesterday
+
+    // Supabase doesn't support complex OR logic like (A OR B) easily in one filter string without raw PostgREST.
+    // .or('last_completed_date.is.null,last_completed_date.lt.' + yesterdayStr)
+
+    const { data: habits, error: habitsError } = await supabase
+        .from('habits')
+        .select('*')
+        .eq('is_active', true)
+        .or(`last_completed_date.is.null,last_completed_date.lt.${yesterdayStr}`)
+        .lte('created_at', yesterday.toISOString()); // created_at is timestamp
+
+    if (habitsError) {
+        console.error('Error fetching habits for reset:', habitsError);
+        return;
+    }
+
+    if (habits) {
+        for (const h of habits) {
             // Reset streak
-            db.prepare('UPDATE habits SET streak = 0 WHERE id = ?').run(h.id);
+            await supabase
+                .from('habits')
+                .update({ streak: 0 })
+                .eq('id', h.id);
 
-            // Apply penalty (-5 HP)
-            db.prepare('UPDATE characters SET hp = MAX(1, hp - 5) WHERE user_id = ?').run(h.user_id);
+            // Fetch character to apply penalty
+            const { data: char } = await supabase
+                .from('characters')
+                .select('hp')
+                .eq('user_id', h.user_id)
+                .single();
+
+            if (char) {
+                const newHp = Math.max(1, char.hp - 5);
+                await supabase
+                    .from('characters')
+                    .update({ hp: newHp })
+                    .eq('user_id', h.user_id);
+            }
 
             // Log penalty
-            db.prepare("INSERT INTO event_log (user_id, event_type, details_json) VALUES (?, ?, ?)")
-                .run(h.user_id, 'PENALTY_HABIT', JSON.stringify({ habitId: h.id, penalty: { hp: 5 } }));
-        });
+            await supabase
+                .from('event_log')
+                .insert([{
+                    user_id: h.user_id,
+                    event_type: 'PENALTY_HABIT',
+                    details_json: { habitId: h.id, penalty: { hp: 5 } }
+                }]);
+        }
+    }
 
-        // 2. Check Task Deadlines
-        // Find tasks that are ACTIVE and deadline has passed
-        const now = new Date().toISOString();
-        const overdueTasks = db.prepare("SELECT * FROM tasks WHERE status = 'ACTIVE' AND deadline < ?").all(now);
+    // 2. Check Task Deadlines
+    const now = new Date().toISOString();
+    const { data: overdueTasks, error: taskError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('status', 'ACTIVE')
+        .lt('deadline', now);
 
-        overdueTasks.forEach(t => {
-            db.prepare("UPDATE tasks SET status = 'FAILED' WHERE id = ?").run(t.id);
+    if (taskError) {
+        console.error('Error fetching overdue tasks:', taskError);
+        return;
+    }
 
-            // Apply penalty (-10 HP)
-            db.prepare('UPDATE characters SET hp = MAX(1, hp - 10) WHERE user_id = ?').run(t.user_id);
+    if (overdueTasks) {
+        for (const t of overdueTasks) {
+            await supabase
+                .from('tasks')
+                .update({ status: 'FAILED' })
+                .eq('id', t.id);
 
-            db.prepare("INSERT INTO event_log (user_id, event_type, details_json) VALUES (?, ?, ?)")
-                .run(t.user_id, 'PENALTY_TASK', JSON.stringify({ taskId: t.id, penalty: { hp: 10 } }));
-        });
+            // Fetch character
+            const { data: char } = await supabase
+                .from('characters')
+                .select('hp')
+                .eq('user_id', t.user_id)
+                .single();
 
-        // 3. Check Inactivity (Simplification: just log for MVP)
-        // Real implementation would check user_activity table for yesterday
-    });
+            if (char) {
+                const newHp = Math.max(1, char.hp - 10);
+                await supabase
+                    .from('characters')
+                    .update({ hp: newHp })
+                    .eq('user_id', t.user_id);
+            }
 
-    transaction();
+            await supabase
+                .from('event_log')
+                .insert([{
+                    user_id: t.user_id,
+                    event_type: 'PENALTY_TASK',
+                    details_json: { taskId: t.id, penalty: { hp: 10 } }
+                }]);
+        }
+    }
 }
 
 module.exports = { startDailyJob, runDailyReset };
