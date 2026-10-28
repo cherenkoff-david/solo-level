@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# editors / IDE
+.vscode/
+.idea/
+*.swp
+
+# dependencies & build artifacts
+node_modules/
+dist/
+build/
+out/
+coverage/
+*.log
+
+# env & secrets
+.env
+.env.local
+.env.*.local
+
+# Kilo / agent local state
+.kilo/agent-manager.json
