@@ -1,0 +1,15 @@
+{
+  "name": "solo-level",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "node --test \"packages/domain/test/**/*.test.ts\"",
+    "gen:progression": "node scripts/gen-progression.ts"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  }
+}

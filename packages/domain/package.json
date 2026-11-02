@@ -1,0 +1,13 @@
+{
+  "name": "@solo/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "description": "Чистая логика прогрессии: XP, уровни, ритм, периоды, награды, журнал",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\""
+  }
+}

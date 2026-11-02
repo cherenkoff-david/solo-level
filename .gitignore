@@ -23,3 +23,8 @@ coverage/
 
 # Kilo / agent local state
 .kilo/agent-manager.json
+
+# Playwright artifacts
+packages/app/test-results/
+packages/app/playwright-report/
+packages/app/.playwright/
