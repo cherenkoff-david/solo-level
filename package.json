@@ -6,8 +6,11 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "node --test \"packages/domain/test/**/*.test.ts\"",
-    "gen:progression": "node scripts/gen-progression.ts"
+    "test": "node --test \"packages/domain/test/**/*.test.ts\" \"packages/finance/test/**/*.test.ts\"",
+    "gen:progression": "node scripts/gen-progression.ts",
+    "dev": "npm run dev --workspace=@solo/app",
+    "typecheck": "npm run typecheck --workspace=@solo/app",
+    "build": "npm run build --workspace=@solo/app"
   },
   "engines": {
     "node": ">=22.18.0"

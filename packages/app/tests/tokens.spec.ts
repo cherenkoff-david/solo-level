@@ -13,7 +13,7 @@ test("токены и шрифты применились", async ({ page }) => 
   );
   expect(bodyBg).toBe("rgb(3, 0, 20)");
 
-  await page.getByRole("heading", { name: "Сегодня" }).waitFor();
+  await page.getByRole("heading", { name: "Раздел в разработке" }).waitFor();
   await page.evaluate(() => document.fonts.ready);
 
   const loaded = await page.evaluate(() => document.fonts.check("14px 'Inter Variable'"));

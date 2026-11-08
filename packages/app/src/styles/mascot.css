@@ -1,0 +1,302 @@
+.mascot-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.mascot-rig {
+  transform: translate3d(calc(var(--mx, 0) * 5px), calc(var(--my, 0) * 3px), 0);
+  transition: transform 520ms cubic-bezier(0.22, 0.7, 0.3, 1);
+}
+
+.mascot-figure,
+.mascot-body,
+.mascot-head,
+.mascot-shadow,
+.mascot-placket,
+.mascot-sigils,
+.mascot-mantle,
+.mascot-cape,
+.mascot-orbits,
+.mascot-halo,
+.mascot-motes,
+.mascot-layer,
+.mascot-sway,
+.mascot-eyes,
+.mascot-ember,
+.mascot-core,
+.mascot-core-pulse,
+.mascot-mark,
+.mascot-rise {
+  transform-box: view-box;
+}
+
+.mascot-body {
+  transform-origin: 100px 282px;
+  animation: mascot-breathe 7s ease-in-out infinite;
+}
+
+.mascot-placket,
+.mascot-sigils,
+.mascot-mantle,
+.mascot-cape {
+  transform-origin: 100px 280px;
+}
+
+.mascot-head {
+  transform-origin: 100px 106px;
+  animation: mascot-head-bob 7s ease-in-out infinite;
+}
+
+.mascot-layer {
+  transform-origin: 110px 104px;
+}
+
+.mascot-sway {
+  transform-origin: 110px 104px;
+  animation: mascot-scarf-sway 9s ease-in-out infinite;
+}
+
+.mascot-sway--b {
+  animation-duration: 9s;
+  animation-delay: -3.2s;
+}
+
+.mascot-eyes {
+  transform-origin: 100px 80px;
+  transform-box: view-box;
+  animation: mascot-eyes 6.2s ease-in-out infinite;
+}
+
+.mascot-cape {
+  animation: mascot-cape-sway 11s ease-in-out infinite;
+}
+
+.mascot-mantle {
+  animation: mascot-mantle 9s ease-in-out infinite;
+}
+
+.mascot-ember {
+  transform-origin: 100px 92px;
+  transform-box: view-box;
+  animation: mascot-core-pulse 4.6s ease-in-out infinite;
+}
+
+.mascot-glint {
+  animation: mascot-glint 3.8s linear infinite;
+}
+
+.mascot-glint--b {
+  animation-duration: 4.6s;
+  animation-delay: -1.7s;
+}
+
+.mascot-core {
+  transform-origin: 100px 168px;
+  transform-box: view-box;
+  animation: mascot-core-pulse 4.6s ease-in-out infinite;
+}
+
+.mascot-core-pulse {
+  transform-origin: 100px 168px;
+  transform-box: view-box;
+  animation: mascot-core-pulse 4.6s ease-in-out infinite;
+}
+
+.mascot-hand-spark {
+  animation: mascot-hand-spark 5.4s ease-in-out infinite;
+}
+
+.mascot-aura {
+  animation: mascot-aura 7s ease-in-out infinite;
+}
+
+.mascot-orbits {
+  transform-origin: 100px 170px;
+  animation: mascot-orbit 46s linear infinite;
+}
+
+.mascot-halo {
+  animation: mascot-halo 5.6s ease-in-out infinite;
+}
+
+.mascot-mote {
+  animation: mascot-mote 7.2s ease-in-out infinite;
+}
+
+.mascot-mote--b {
+  animation-delay: -1.6s;
+  animation-duration: 6.4s;
+}
+
+.mascot-mote--c {
+  animation-delay: -3.1s;
+  animation-duration: 8s;
+}
+
+.mascot-mote--d {
+  animation-delay: -4.4s;
+  animation-duration: 6.8s;
+}
+
+.mascot-mote--e {
+  animation-delay: -2.2s;
+  animation-duration: 7.6s;
+}
+
+.mascot-mote--f {
+  animation-delay: -5.3s;
+  animation-duration: 6.1s;
+}
+
+.mascot-rise {
+  transform-origin: 100px 168px;
+  transform-box: view-box;
+  animation: mascot-rise 1100ms cubic-bezier(0.2, 0.6, 0.3, 1) forwards;
+}
+
+@keyframes mascot-breathe {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes mascot-head-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.6deg);
+  }
+  50% {
+    transform: translateY(-1.4px) rotate(0.6deg);
+  }
+}
+
+@keyframes mascot-scarf-sway {
+  0%,
+  100% {
+    transform: rotate(-1.4deg) translateX(0);
+  }
+  50% {
+    transform: rotate(1.6deg) translateX(2px);
+  }
+}
+
+@keyframes mascot-glint {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -118;
+  }
+}
+
+@keyframes mascot-core-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.92;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+@keyframes mascot-hand-spark {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.75;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@keyframes mascot-aura {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+@keyframes mascot-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes mascot-halo {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes mascot-mote {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.15;
+  }
+  45% {
+    opacity: 0.85;
+  }
+  70% {
+    transform: translateY(-14px);
+    opacity: 0;
+  }
+}
+
+@keyframes mascot-rise {
+  0% {
+    transform: scale(0.62);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot-rig {
+    transform: none;
+    transition: none;
+  }
+
+  .mascot-body,
+  .mascot-cape,
+  .mascot-mantle,
+  .mascot-eyes,
+  .mascot-ember,
+  .mascot-head,
+  .mascot-sway,
+  .mascot-glint,
+  .mascot-core,
+  .mascot-core-pulse,
+  .mascot-hand-spark,
+  .mascot-aura,
+  .mascot-orbits,
+  .mascot-halo,
+  .mascot-mote,
+  .mascot-rise {
+    animation: none;
+  }
+
+  .mascot-rise {
+    opacity: 0;
+  }
+}

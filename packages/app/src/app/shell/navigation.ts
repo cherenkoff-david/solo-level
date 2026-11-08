@@ -8,4 +8,5 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: "/progress", label: "Прогресс" },
   { path: "/spheres", label: "Сферы" },
   { path: "/settings", label: "Настройки" },
+  { path: "/finance", label: "Финансы" },
 ];

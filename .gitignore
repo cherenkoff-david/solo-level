@@ -23,6 +23,7 @@ coverage/
 
 # Kilo / agent local state
 .kilo/agent-manager.json
+.taste-skill/
 
 # Playwright artifacts
 packages/app/test-results/

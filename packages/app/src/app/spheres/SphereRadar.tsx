@@ -34,7 +34,7 @@ export function SphereRadar({ progress }: SphereRadarProps) {
   return (
     <section
       aria-label="Развитие сфер"
-      className="rounded-lg border border-border bg-surface px-5 py-5"
+      className="w-full rounded-lg border border-border bg-surface px-5 py-5"
     >
       <h2 className="text-sm font-medium text-text">Развитие сфер</h2>
 
@@ -94,7 +94,7 @@ export function SphereRadar({ progress }: SphereRadarProps) {
               y={y}
               textAnchor="middle"
               dominantBaseline="middle"
-              className="fill-[var(--color-text-muted)] text-[10px]"
+              className="fill-[var(--color-text-muted)] text-[13px]"
             >
               {item.sphere.name}
             </text>
@@ -113,7 +113,7 @@ export function SphereRadar({ progress }: SphereRadarProps) {
         ))}
       </ul>
 
-      <p className="mt-3 text-xs text-text-faint">
+      <p className="mt-3 text-sm text-text-faint">
         демонстрационные данные — подключение журнала впереди
       </p>
     </section>

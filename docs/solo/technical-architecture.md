@@ -75,10 +75,22 @@ packages/
                      тонкий слой над доменом; дизайн-токены — в src/styles/index.css
     app/shell/     оболочка: AppShell (двухколоночная сетка, max-w 1200px),
                    Header (стеклянный sticky-хедер), navigation.ts
+    app/landing/   входная страница /welcome (вне AppShell): LandingPage, HeroDemo,
+                   Spark («Искра»), Stages, Spheres, Finance, Faq, Cta, Reveal
     app/spheres/   обзор сфер: spheres.ts (SPHERES + getSphereProgress,
                    PLACEHOLDER-данные до слоя журнала), SphereRadar.tsx (SVG-радар)
-    app/screens/   экраны разделов (пока EmptyState)
+    app/screens/   SoloPlaceholder.tsx — один общий экран-заглушка
+                   «раздел ещё в разработке» для всех маршрутов Solo
+    app/finance/   раздел «Финансы» (отдельное направление, свой стор и экраны)
+  finance/         ← домен финансов: деньги, серии, план, снимки, баланс
+    money.ts, series.ts, plan.ts, snapshots.ts, balance.ts
 ```
+
+**Маршруты клиента.** `/welcome` — входная страница, единственный маршрут вне `AppShell`; логотип в
+хедере ведёт на неё. Внутри оболочки: `/`, `/progress`, `/spheres`, `/settings` (общий
+`SoloPlaceholder`) и `/finance` с вложенными `calendar`, `operations`, `settings`. Неизвестный адрес
+перенаправляется на `/`. Числа и кнопки на `/welcome` используют `@solo/domain` и `@solo/finance`,
+поэтому страница не содержит отдельного «демо-расчёта», который мог бы разойтись с приложением.
 
 Почему так:
 

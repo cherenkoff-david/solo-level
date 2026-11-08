@@ -46,6 +46,162 @@
   --radius-lg: 12px;
 
   --spacing: 4px;
+
+  --animate-march: march 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  --animate-pulse-soft: pulse-soft 2.8s ease-in-out infinite;
+}
+
+@keyframes march {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(420%);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes leaf-unfold {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0.35);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}
+
+@keyframes drift {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  22% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translateY(-52px);
+    opacity: 0;
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes logo-spark {
+  0% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.95;
+  }
+  58% {
+    stroke-dashoffset: -93;
+    opacity: 0.95;
+  }
+  70%,
+  100% {
+    stroke-dashoffset: -93;
+    opacity: 0;
+  }
+}
+
+@keyframes logo-ripple {
+  0%,
+  58% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  64% {
+    opacity: 0.5;
+  }
+  84%,
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+@keyframes logo-node {
+  0%,
+  50% {
+    transform: scale(1);
+  }
+  62% {
+    transform: scale(1.22);
+  }
+  74%,
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes logo-start {
+  0%,
+  58% {
+    opacity: 0.55;
+  }
+  64% {
+    opacity: 1;
+  }
+  76%,
+  100% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes logo-halo {
+  0%,
+  48% {
+    opacity: 0.55;
+  }
+  64% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.55;
+  }
 }
 
 @layer base {
@@ -81,6 +237,11 @@
     border-radius: var(--radius-sm);
   }
 
+  body[data-section="finance"] {
+    background-image: none;
+    background-color: #08080a;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -94,4 +255,187 @@
 @utility nums {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+@keyframes tour-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tour-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tour-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tour-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes tour-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes tour-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes tour-ring-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes tour-calm {
+  0% {
+    opacity: 1;
+    filter: none;
+  }
+  45% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0.18;
+    filter: blur(1.5px);
+  }
+}
+
+@layer components {
+  .logo-spark {
+    animation: logo-spark 4.8s cubic-bezier(0.4, 0.1, 0.3, 1) infinite;
+  }
+
+  .logo-halo {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: logo-halo 4.8s ease-in-out infinite;
+  }
+
+  .logo-ripple {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: logo-ripple 4.8s ease-out infinite;
+  }
+
+  .logo-node {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: logo-node 4.8s cubic-bezier(0.3, 0.8, 0.4, 1) infinite;
+  }
+
+  .logo-start {
+    animation: logo-start 4.8s ease-in-out infinite;
+  }
+
+  .growth-line {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: draw 2.6s cubic-bezier(0.22, 0.7, 0.3, 1) both;
+  }
+
+  .leaf {
+    transform-box: fill-box;
+    transform-origin: bottom center;
+    animation: leaf-unfold 1.4s cubic-bezier(0.22, 0.7, 0.3, 1) both;
+  }
+
+  .ripple-ring {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ripple 6.5s cubic-bezier(0.2, 0.5, 0.3, 1) infinite;
+  }
+
+  .drift-dot {
+    animation: drift 6s linear infinite;
+  }
+
+  .breathe {
+    animation: breathe 7s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-spark {
+    stroke-dasharray: none;
+    opacity: 0.9;
+    animation: none;
+  }
+
+  .logo-halo {
+    opacity: 0.6;
+    animation: none;
+  }
+
+  .logo-start,
+  .logo-node {
+    transform: none;
+    opacity: 1;
+    animation: none;
+  }
+
+  .logo-ripple {
+    opacity: 0;
+    animation: none;
+  }
+
+  .growth-line {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+
+  .leaf {
+    transform: none;
+    animation: none;
+  }
+
+  .ripple-ring,
+  .drift-dot,
+  .breathe {
+    animation: none;
+  }
 }

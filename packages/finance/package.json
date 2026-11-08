@@ -1,0 +1,13 @@
+{
+  "name": "@solo/finance",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "description": "Чистая логика финансов: баланс, планы, серии, снимки месяцев",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\""
+  }
+}
