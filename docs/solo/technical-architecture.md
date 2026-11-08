@@ -1,7 +1,7 @@
 # Solo Level — техническая архитектура
 
 **Статус:** рабочий документ · версия 0.2  
-**Связанные документы:** `solo-level-product-foundation.md`, `solo-level-progression-system.md`  
+**Связанные документы:** `product-foundation.md`, `progression-system.md`  
 **Область:** стек, схема данных, безопасность, интеграция фронтенда и бэкенда первой версии.
 
 ---

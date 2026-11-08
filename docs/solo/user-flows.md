@@ -1,7 +1,7 @@
 # Solo Level — пользовательские сценарии
 
 **Статус:** рабочий документ · версия 0.1  
-**Связанные документы:** `solo-level-product-foundation.md`, `solo-level-progression-system.md`, `solo-level-technical-architecture.md`  
+**Связанные документы:** `product-foundation.md`, `progression-system.md`, `technical-architecture.md`  
 **О диаграммах:** все схемы ниже написаны в формате Mermaid. GitHub отображает их прямо в файле; в других просмотрщиках нужен плагин Mermaid.
 
 ---
