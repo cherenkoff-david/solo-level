@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 
-import { formatRub, formatRubCompact } from "@solo/finance";
-import type { Money } from "@solo/finance";
+import { describeDeviation, formatRub, formatRubCompact } from "@solo/finance";
+import type { Money as MoneyValue } from "@solo/finance";
 
 import { useAmountsMasked } from "../privacy";
+import { deviationWords, deviationWordsWithPreposition } from "../deviationWords";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -138,7 +139,7 @@ export function Money({
   className = "",
   compact = false,
 }: {
-  amountMinor: Money;
+  amountMinor: MoneyValue;
   className?: string;
   compact?: boolean;
 }) {
@@ -156,7 +157,7 @@ export function SignedMoney({
   className = "",
   compact = false,
 }: {
-  amountMinor: Money;
+  amountMinor: MoneyValue;
   className?: string;
   compact?: boolean;
 }) {
@@ -168,6 +169,47 @@ export function SignedMoney({
     <span className={`nums ${className}`}>
       {sign}
       {compact ? formatRubCompact(abs) : formatRub(abs)}
+    </span>
+  );
+}
+
+/**
+ * Расхождение словами: «сверх плана 5 000 ₽», «ниже плана 3 000 ₽», «по плану».
+ * Знак не выводится — направление передаётся словом (см. `describeDeviation`).
+ */
+export function DeviationText({
+  deviationMinor,
+  className = "",
+  compact = false,
+  noPlan = false,
+  label = "",
+  withPreposition = false,
+}: {
+  deviationMinor: MoneyValue;
+  className?: string;
+  compact?: boolean;
+  /** Трата без плана: показывается как «без плана», а не как перерасход. */
+  noPlan?: boolean;
+  /** Уточнение перед словами: например, «за месяц». */
+  label?: string;
+  /** Форма с предлогом: «ниже плана на 10 000 ₽». */
+  withPreposition?: boolean;
+}) {
+  const facts = noPlan
+    ? ({ direction: "no_plan", amountMinor: Math.abs(deviationMinor) } as const)
+    : describeDeviation(deviationMinor);
+
+  const words = withPreposition
+    ? deviationWordsWithPreposition(facts.direction)
+    : deviationWords(facts.direction);
+
+  return (
+    <span className={`inline-flex items-baseline gap-1 ${className}`}>
+      {label === "" ? null : <span className="text-text-faint">{label}</span>}
+      <span className="text-text-muted">{words}</span>
+      {facts.direction === "exact" ? null : (
+        <Money amountMinor={facts.amountMinor} compact={compact} className="text-text" />
+      )}
     </span>
   );
 }

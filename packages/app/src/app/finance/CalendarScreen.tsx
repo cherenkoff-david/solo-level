@@ -140,7 +140,7 @@ export function CalendarScreen() {
                     {Number(date.slice(8, 10))}
                   </span>
                   {isFuture && planned !== 0 ? (
-                    <Money amountMinor={planned} compact className="text-[10px] text-text-faint" />
+                    <SignedMoney amountMinor={planned} compact className="text-[10px] text-text-faint" />
                   ) : null}
                 </span>
                 {isFuture ? (

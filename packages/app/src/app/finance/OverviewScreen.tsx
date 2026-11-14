@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import {
   accumulatedDeviation,
+  accountingStart,
   activeBaseline,
   actualBalance,
   addMonths,
@@ -21,7 +22,7 @@ import {
 import type { FinanceState } from "@solo/finance";
 
 import { CashflowChart } from "./CashflowChart";
-import { Button, Card, CardHeader, Chip, Dialog, EmptyState, Field, Money, SignedMoney, TextInput } from "./components/ui";
+import { Button, Card, CardHeader, Chip, DeviationText, Dialog, EmptyState, Field, Money, TextInput } from "./components/ui";
 import { ConfirmPlanDialog } from "./ConfirmPlanDialog";
 import { acceptReality, findCategory, getCategoriesInUse } from "./store";
 import { useFinanceState, useToday } from "./useFinance";
@@ -78,6 +79,9 @@ export function OverviewScreen() {
   const rangeFrom = monthStartOf(today);
   const rangeTo = monthEndOf(addMonths(monthKey, range === "month" ? 0 : range === "three" ? 2 : 5));
   const points = useMemo(() => cashflow(state, rangeFrom, rangeTo), [state, rangeFrom, rangeTo, today]);
+  const accountingFrom = accountingStart(state);
+  const chartStartsLate =
+    accountingFrom !== null && points.length > 0 && points[0]?.date === accountingFrom && accountingFrom > rangeFrom;
   const shortage = useMemo(() => firstShortage(state, today, rangeTo), [state, today, rangeTo]);
 
   const plan = confirmPlanId === null ? null : state.operations.find((operation) => operation.id === confirmPlanId) ?? null;
@@ -85,9 +89,6 @@ export function OverviewScreen() {
   const topOverrun = rows
     .filter((row) => row.category.kind === "expense" && row.hasPlan && row.deviationMinor > 0)
     .sort((left, right) => right.deviationMinor - left.deviationMinor)[0];
-
-  const deviationLabel =
-    deviation === 0 ? "ровно по плану" : deviation > 0 ? "выше плана" : "ниже плана";
 
   return (
     <div className="flex flex-col gap-5">
@@ -154,12 +155,16 @@ export function OverviewScreen() {
             ) : (
               <>
                 <Chip tone="outline">
-                  <SignedMoney amountMinor={deviation} className="mr-1" />
-                  {deviationLabel}
+                  <DeviationText
+                    deviationMinor={deviation}
+                    className="whitespace-nowrap"
+                    withPreposition
+                  />
                 </Chip>
                 {topOverrun === undefined ? null : (
                   <span className="text-xs text-text-muted">
-                    больше всего сверх плана: {topOverrun.category.name} на <SignedMoney amountMinor={topOverrun.deviationMinor} />
+                    больше всего сверх плана: {topOverrun.category.name} на{" "}
+                    <Money amountMinor={topOverrun.deviationMinor} />
                   </span>
                 )}
               </>
@@ -189,7 +194,11 @@ export function OverviewScreen() {
             {state.settings.hideDeviation ? (
               <span className="text-2xl text-text-faint">скрыто</span>
             ) : (
-              <SignedMoney amountMinor={accumulated} className="text-2xl text-text" />
+              <DeviationText
+                deviationMinor={accumulated}
+                className="text-xl text-text"
+                label="за всё время"
+              />
             )}
           </div>
           <p className="mt-2 text-sm text-text-muted">
@@ -217,7 +226,7 @@ export function OverviewScreen() {
       <Card dataTour="chart">
         <CardHeader
           title="Денежный поток"
-          hint="Факт до сегодня, план на всём диапазоне. Точки по дням: наведите на линию"
+          hint="Факт до сегодня, план на всём диапазоне. Наведите или кликните по дню — ниже появятся накопления и операции"
           actions={
             <div className="flex items-center gap-1">
               {(Object.keys(RANGE_LABEL) as Range[]).map((item) => (
@@ -236,7 +245,18 @@ export function OverviewScreen() {
           }
         />
         <div className="px-5 py-4">
-          <CashflowChart points={points} />
+          {chartStartsLate ? (
+            <p className="mb-3 text-xs text-text-faint">
+              График начинается с {formatDayLabel(accountingFrom ?? "")}: раньше этой даты учёт не вёлся,
+              и дорисовывать нули было бы выдумкой.
+            </p>
+          ) : null}
+          <CashflowChart
+            points={points}
+            operations={state.operations}
+            categories={state.categories}
+            today={today}
+          />
         </div>
       </Card>
 
@@ -260,6 +280,16 @@ export function OverviewScreen() {
             />
           </div>
         ) : (
+          <>
+          <div
+            aria-hidden="true"
+            className="grid grid-cols-[1fr_auto_auto_auto] items-baseline gap-4 px-5 pt-3 text-[10px] uppercase tracking-[0.08em] text-text-faint"
+          >
+            <span>категория</span>
+            <span className="w-24 text-right">план</span>
+            <span className="w-24 text-right">факт</span>
+            <span className="w-40 text-right">расхождение</span>
+          </div>
           <div className="divide-y divide-border">
             {(["expense", "income"] as const).map((kind) => {
               const kindRows = rows.filter((row) => row.category.kind === kind);
@@ -285,14 +315,8 @@ export function OverviewScreen() {
                         <span className="w-24 text-right text-sm text-text">
                           <Money amountMinor={row.factMinor} />
                         </span>
-                        <span className="w-28 text-right text-xs text-text-muted">
-                          {!row.hasPlan && row.factMinor > 0 ? (
-                            <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5">сверх плана</span>
-                          ) : row.deviationMinor === 0 ? (
-                            <span className="text-text-faint">по плану</span>
-                          ) : (
-                            <SignedMoney amountMinor={row.deviationMinor} />
-                          )}
+                        <span className="flex w-40 justify-end text-right text-xs">
+                          <DeviationText deviationMinor={row.deviationMinor} noPlan={!row.hasPlan} />
                         </span>
                       </li>
                     ))}
@@ -301,6 +325,7 @@ export function OverviewScreen() {
               );
             })}
           </div>
+          </>
         )}
       </Card>
 

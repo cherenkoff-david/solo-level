@@ -83,6 +83,16 @@ export function isWithin(date: IsoDate, from: IsoDate, to: IsoDate): boolean {
   return date >= from && date <= to;
 }
 
+/** Границы диапазона по месяцам: ноябрь 2026 → январь 2027 даёт 2026-11-01 … 2027-01-31. */
+export function monthRangeBounds(
+  fromMonth: string,
+  toMonth: string,
+): { from: IsoDate; to: IsoDate } {
+  const start = fromMonth <= toMonth ? fromMonth : toMonth;
+  const end = fromMonth <= toMonth ? toMonth : fromMonth;
+  return { from: `${start}-01`, to: monthEndOf(`${end}-01`) };
+}
+
 const MONTH_NAMES = [
   "января",
   "февраля",

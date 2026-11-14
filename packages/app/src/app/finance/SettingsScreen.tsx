@@ -9,36 +9,30 @@ import {
   monthKeyOf,
   planRemaining,
 } from "@solo/finance";
-import type { CategoryKind } from "@solo/finance";
-
 import {
   acceptReality,
-  addCategory,
   addSampleData,
-  archiveCategory,
   closeCurrentMonth,
   deleteSeries,
   exportJson,
-  renameCategory,
   resetFinance,
-  restoreCategory,
-  toggleCategoryEssential,
   toggleHideDeviation,
   updateSeriesAmount,
 } from "./store";
-import { Button, Card, CardHeader, Chip, Field, Money, Select, Toggle, TextInput } from "./components/ui";
+import { Button, Card, CardHeader, Chip, DeviationText, Field, Money, Toggle, TextInput } from "./components/ui";
+import { CategoryManager } from "./CategoryManager";
 import { useFinanceState, useToday } from "./useFinance";
+import { SignOutButton } from "../auth/AuthPanel";
+import { useAuthState } from "../auth/useAuth";
 import { useLocation, useNavigate } from "react-router-dom";
 
 export function SettingsScreen() {
+  const auth = useAuthState();
   const state = useFinanceState();
   const today = useToday();
   const navigate = useNavigate();
   const location = useLocation();
   const [acceptDate, setAcceptDate] = useState(today);
-  const [newName, setNewName] = useState("");
-  const [newKind, setNewKind] = useState<CategoryKind>("expense");
-  const [newEssential, setNewEssential] = useState(false);
   const [resetArmed, setResetArmed] = useState(false);
 
   const baseline = activeBaseline(state.baselines, today);
@@ -115,8 +109,8 @@ export function SettingsScreen() {
                       <span className="text-xs text-text-faint">
                         факт <Money amountMinor={snapshot.factMinor} />
                       </span>
-                      <span className="text-xs text-text">
-                        <Money amountMinor={snapshot.deviationMinor} />
+                      <span className="text-xs">
+                        <DeviationText deviationMinor={snapshot.deviationMinor} compact />
                       </span>
                       <Chip>{snapshot.closeMode === "auto" ? "авто" : "вручную"}</Chip>
                     </li>
@@ -127,82 +121,7 @@ export function SettingsScreen() {
         </div>
       </Card>
 
-      <Card dataTour="categories">
-        <CardHeader title="Категории" hint="Плоский список: вид, обязательность, архивирование" />
-        <div className="px-5 py-4">
-          <ul className="divide-y divide-border">
-            {state.categories.map((category) => (
-              <li key={category.id} className="flex flex-wrap items-center gap-3 py-2">
-                <span className="flex size-5 items-center justify-center rounded border border-border text-[10px] text-text-muted">
-                  {category.icon}
-                </span>
-                <TextInput
-                  defaultValue={category.name}
-                  onBlur={(event) => {
-                    if (event.target.value.trim() !== category.name) renameCategory(category.id, event.target.value);
-                  }}
-                  className={`h-8 max-w-56 flex-1 border-transparent bg-transparent px-1 hover:border-border focus:border-text ${category.archivedAt === null ? "" : "text-text-faint"}`}
-                  aria-label={`Название категории ${category.name}`}
-                />
-                <Chip>{category.kind === "income" ? "доход" : "расход"}</Chip>
-                {category.kind === "expense" ? (
-                  <label className="flex items-center gap-1.5 text-xs text-text-muted">
-                    <input
-                      type="checkbox"
-                      checked={category.isEssential}
-                      onChange={() => toggleCategoryEssential(category.id)}
-                      className="size-3.5 accent-white"
-                    />
-                    обязательная
-                  </label>
-                ) : null}
-                {category.archivedAt === null ? (
-                  <Button size="sm" variant="ghost" onClick={() => archiveCategory(category.id)}>
-                    в архив
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="ghost" onClick={() => restoreCategory(category.id)}>
-                    вернуть
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-border pt-4">
-            <Field label="Новая категория" className="min-w-48 flex-1">
-              <TextInput value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Спортзал" />
-            </Field>
-            <Field label="Вид" className="w-32">
-              <Select value={newKind} onChange={(event) => setNewKind(event.target.value as CategoryKind)}>
-                <option value="expense">Расход</option>
-                <option value="income">Доход</option>
-              </Select>
-            </Field>
-            {newKind === "expense" ? (
-              <label className="flex items-center gap-1.5 pb-2.5 text-xs text-text-muted">
-                <input
-                  type="checkbox"
-                  checked={newEssential}
-                  onChange={() => setNewEssential(!newEssential)}
-                  className="size-3.5 accent-white"
-                />
-                обязательная
-              </label>
-            ) : null}
-            <Button
-              variant="primary"
-              onClick={() => {
-                addCategory({ name: newName, kind: newKind, isEssential: newEssential });
-                setNewName("");
-                setNewEssential(false);
-              }}
-            >
-              Добавить
-            </Button>
-          </div>
-        </div>
-      </Card>
+      <CategoryManager />
 
       <Card>
         <CardHeader title="Серии" hint="Повторяющиеся операции с конечной границей" />
@@ -269,7 +188,7 @@ export function SettingsScreen() {
       </Card>
 
       <Card dataTour="export">
-        <CardHeader title="Данные" hint="Живут в браузере этого устройства" />
+        <CardHeader title="Данные" hint="Хранятся в Supabase и защищены RLS" />
         <div className="flex flex-wrap items-center gap-3 px-5 py-4">
           <Button variant="secondary" onClick={download}>
             Экспорт JSON
@@ -310,6 +229,14 @@ export function SettingsScreen() {
         <p className="border-t border-border px-5 py-3 text-xs text-text-faint">
           Обучение пока запускается кнопкой. Позже оно будет автоматически показываться новому пользователю один раз.
         </p>
+      </Card>
+
+      <Card>
+        <CardHeader title="Аккаунт" hint="Один пользователь — один набор данных в облаке" />
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+          <span className="text-sm text-text-muted">{auth.email ?? "—"}</span>
+          <SignOutButton />
+        </div>
       </Card>
     </div>
   );

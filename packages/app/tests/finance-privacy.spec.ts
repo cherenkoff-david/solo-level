@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 
-test("финансы: суммы маскируются после 30 секунд бездействия", async ({ page }) => {
-  await page.addInitScript(() => localStorage.clear());
-  await page.clock.install();
-  await page.goto("/finance");
-  await page.getByRole("button", { name: "Сначала посмотреть на примере" }).click();
+import { signIn } from "./helpers";
 
-  await expect(page.getByRole("heading", { name: "Финансы" })).toBeVisible();
+test("финансы: суммы маскируются после 30 секунд бездействия", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("solo.finance.tour.seen.v1", "1"));
+  await page.clock.install();
+  await signIn(page);
+
   await expect(page.getByRole("status")).toHaveCount(0);
   await expect(page.locator(".nums").filter({ hasText: "₽" }).first()).toBeVisible();
 

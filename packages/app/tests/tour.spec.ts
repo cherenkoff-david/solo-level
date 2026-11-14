@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { signIn } from "./helpers";
+
 interface Box {
   top: number;
   left: number;
@@ -9,10 +11,10 @@ interface Box {
 }
 
 async function startTour(page: Page): Promise<void> {
-  await page.goto("/finance");
-  await page.evaluate(() => localStorage.clear());
+  await signIn(page);
+  await page.evaluate(() => localStorage.setItem("solo.finance.tour.seen.v1", "1"));
   await page.reload();
-  await page.getByRole("button", { name: "Сначала посмотреть на примере" }).click();
+  await expect(page.getByText("Продукты").first()).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: /Обучение/ }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
 }

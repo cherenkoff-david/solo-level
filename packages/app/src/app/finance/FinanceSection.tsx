@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
-import { addSampleData, ensureSnapshots, isConfigured, setupFinance } from "./store";
-import { useFinanceState, useToday } from "./useFinance";
+import {
+  addSampleData,
+  clearFinance,
+  clearFinanceError,
+  ensureSnapshots,
+  isConfigured,
+  loadFinance,
+  setupFinance,
+} from "./store";
+import { useFinanceError, useFinanceState, useFinanceStatus, useToday } from "./useFinance";
+import { AuthPanel } from "../auth/AuthPanel";
+import { useAuthState } from "../auth/useAuth";
 import { Button, Card, Field, TextInput } from "./components/ui";
 import { parseRub, todayIso } from "@solo/finance";
 import { buildTourSteps, TOUR_SEEN_KEY } from "./tour/tourSteps";
@@ -29,7 +39,10 @@ function markTourSeen(): void {
 }
 
 export function FinanceSection() {
+  const auth = useAuthState();
   const state = useFinanceState();
+  const financeStatus = useFinanceStatus();
+  const financeError = useFinanceError();
   const location = useLocation();
   const configured = isConfigured(state);
   const amountsMasked = useInactivityMask();
@@ -47,7 +60,20 @@ export function FinanceSection() {
   }, []);
 
   useEffect(() => {
-    ensureSnapshots(todayIso());
+    if (auth.status === "signedIn") {
+      void loadFinance();
+    } else if (auth.status === "signedOut" || auth.status === "unconfigured") {
+      clearFinance();
+    }
+  }, [auth.status]);
+
+  useEffect(() => {
+    if (financeStatus === "ready" && configured) {
+      ensureSnapshots(todayIso());
+    }
+  }, [financeStatus, configured]);
+
+  useEffect(() => {
     document.body.dataset.section = "finance";
     return () => {
       delete document.body.dataset.section;
@@ -70,8 +96,65 @@ export function FinanceSection() {
 
   const steps = buildTourSteps(configured);
 
+  if (auth.status === "unconfigured") {
+    return <SupabaseNotConfigured />;
+  }
+
+  if (auth.status === "loading") {
+    return (
+      <div className="mx-auto max-w-md py-10">
+        <Card className="p-6">
+          <h1 className="text-2xl font-medium tracking-[-0.01em] text-text">Финансы</h1>
+          <p className="mt-2 text-sm text-text-muted">Проверяем сессию…</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (auth.status === "signedOut") {
+    return <AuthPanel auth={auth} />;
+  }
+
+  if (financeStatus === "idle" || financeStatus === "loading") {
+    return (
+      <div className="mx-auto max-w-md py-10">
+        <Card className="p-6">
+          <h1 className="text-2xl font-medium tracking-[-0.01em] text-text">Финансы</h1>
+          <p className="mt-2 text-sm text-text-muted">Загружаем данные из базы…</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (financeStatus === "error" && !configured) {
+    return (
+      <div className="mx-auto max-w-md py-10">
+        <Card className="p-6">
+          <h1 className="text-2xl font-medium tracking-[-0.01em] text-text">Не удалось загрузить раздел</h1>
+          <p className="mt-2 text-sm text-text-muted">{financeError ?? "Неизвестная ошибка"}</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button variant="primary" onClick={() => void loadFinance()}>
+              Повторить
+            </Button>
+            <Button variant="ghost" onClick={clearFinanceError}>
+              Закрыть
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <AmountsPrivacyProvider masked={amountsMasked}>
+      {financeError === null ? null : (
+        <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-5 py-3 text-sm text-text">
+          <span>Не удалось сохранить изменение: {financeError}</span>
+          <Button variant="ghost" size="sm" onClick={clearFinanceError}>
+            Скрыть
+          </Button>
+        </div>
+      )}
       {configured ? (
         <div className="flex flex-col gap-6">
           {amountsMasked ? (
@@ -134,6 +217,24 @@ export function FinanceSection() {
 
       {tourOpen ? <TourOverlay key={tourRun} steps={steps} onClose={closeTour} /> : null}
     </AmountsPrivacyProvider>
+  );
+}
+
+function SupabaseNotConfigured() {
+  return (
+    <div className="mx-auto max-w-xl py-10">
+      <Card className="p-6">
+        <h1 className="text-2xl font-medium tracking-[-0.01em] text-text">База данных не подключена</h1>
+        <p className="mt-2 text-sm text-text-muted">
+          Скопируйте <span className="text-text">packages/app/.env.example</span> в{" "}
+          <span className="text-text">packages/app/.env.local</span> и заполните адрес и publishable-ключ
+          из <span className="text-text">npm run db:status</span>.
+        </p>
+        <p className="mt-3 text-xs text-text-faint">
+          После изменения переменных перезапустите dev-сервер Vite: окружение читается при сборке.
+        </p>
+      </Card>
+    </div>
   );
 }
 

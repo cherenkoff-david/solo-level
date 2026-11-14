@@ -59,6 +59,18 @@ export function basePoint(state: FinanceState, date: IsoDate): BasePoint {
   return { amountMinor: 0, from: first ?? date };
 }
 
+/**
+ * Дата, с которой баланс вообще имеет смысл: раньше первой базовой линии
+ * и первой операции отсчёт строится от нуля, то есть от выдуманного значения.
+ * Возвращает null, если данных нет совсем.
+ */
+export function accountingStart(state: FinanceState): IsoDate | null {
+  const baselineDates = state.baselines.map((baseline) => baseline.effectiveDate);
+  const operationDates = state.operations.map((operation) => operation.onDate);
+  const all = [...baselineDates, ...operationDates].sort();
+  return all[0] ?? null;
+}
+
 export function targetBalance(state: FinanceState, date: IsoDate): Money {
   const base = basePoint(state, date);
   return base.amountMinor + sums(state, categoryMap(state), base.from, date, true).target;
@@ -135,6 +147,39 @@ export function monthComparison(state: FinanceState, monthKey: string): MonthCom
   return rows;
 }
 
+export type DeviationDirection = "over" | "under" | "exact" | "no_plan";
+
+export interface DeviationFacts {
+  readonly direction: DeviationDirection;
+  /** Всегда неотрицательная величина: направление задаётся словом, а не знаком. */
+  readonly amountMinor: Money;
+}
+
+/**
+ * Единое описание расхождения: направление словом, величина без знака.
+ *
+ * Знак убран потому, что одно и то же расхождение описывалось с разными
+ * знаками на разных экранах: список категорий показывал «+5 000» (суммы трат),
+ * карточка баланса — «−5 000» (деньги на руках). Пользователь видел один
+ * перерасход дважды с противоположными знаками.
+ *
+ * Граница правила: знак остаётся только у **потоков** — изменения за день или
+ * период, где знак и есть смысл величины. У остатков и расхождений знака нет.
+ */
+export function describeDeviation(deviationMinor: Money): DeviationFacts {
+  if (deviationMinor === 0) return { direction: "exact", amountMinor: 0 };
+  return deviationMinor > 0
+    ? { direction: "over", amountMinor: deviationMinor }
+    : { direction: "under", amountMinor: -deviationMinor };
+}
+
+export function deviationFacts(row: MonthComparisonRow): DeviationFacts {
+  if (!row.hasPlan) {
+    return { direction: "no_plan", amountMinor: Math.abs(row.factMinor) };
+  }
+  return describeDeviation(row.deviationMinor);
+}
+
 export interface CashflowPoint {
   readonly date: IsoDate;
   readonly target: Money;
@@ -146,24 +191,42 @@ export function cashflow(
   from: IsoDate,
   to: IsoDate,
 ): CashflowPoint[] {
+  const start = accountingStart(state);
+  const effectiveFrom = start !== null && start > from ? start : from;
   const categories = categoryMap(state);
-  const base = basePoint(state, from);
-  const before = sums(state, categories, base.from, from, false);
+  const base = basePoint(state, effectiveFrom);
+  const before = sums(state, categories, base.from, effectiveFrom, false);
   let target = base.amountMinor + before.target;
   let fact = base.amountMinor + before.fact;
 
+  /**
+   * Базовая линия внутри диапазона — это перезапуск отсчёта, а не операция.
+   * Без этого график не узнаёт о «принять реальность» или о старте учёта
+   * в середине месяца: линии остаются на нуле, хотя на руках есть деньги.
+   */
+  const restartsOn = new Map<IsoDate, Money>();
+  for (const baseline of state.baselines) {
+    if (baseline.effectiveDate <= effectiveFrom || baseline.effectiveDate > to) continue;
+    restartsOn.set(baseline.effectiveDate, baseline.amountMinor);
+  }
+
   const byDate = new Map<IsoDate, Operation[]>();
   for (const operation of state.operations) {
-    if (operation.onDate < from || operation.onDate > to) continue;
+    if (operation.onDate < effectiveFrom || operation.onDate > to) continue;
     const bucket = byDate.get(operation.onDate);
     if (bucket === undefined) byDate.set(operation.onDate, [operation]);
     else bucket.push(operation);
   }
 
   const points: CashflowPoint[] = [];
-  let cursor = from;
+  let cursor = effectiveFrom;
   let guard = 0;
   while (cursor <= to && guard < 4000) {
+    const restart = restartsOn.get(cursor);
+    if (restart !== undefined) {
+      target = restart;
+      fact = restart;
+    }
     for (const operation of byDate.get(cursor) ?? []) {
       const direction = categoryDirection(categories, operation.categoryId);
       if (operation.entryType === "actual") fact += direction * operation.amountMinor;
@@ -209,6 +272,40 @@ export function operationsOfDay(operations: readonly Operation[], date: IsoDate)
       if (left.entryType !== right.entryType) return left.entryType === "actual" ? -1 : 1;
       return left.amountMinor - right.amountMinor;
     });
+}
+
+export interface DayFlow {
+  readonly actualMinor: Money;
+  readonly plannedMinor: Money;
+}
+
+/**
+ * Изменение баланса за конкретный день: отдельно то, что уже произошло,
+ * и то, что только запланировано. Нужно, чтобы не смешивать «сколько
+ * денег ушло» с «сколько уйдёт по плану»: на будущую дату фактическое
+ * изменение равно нулю, каким бы большим ни был план.
+ */
+export function dayFlowFor(
+  operations: readonly Operation[],
+  categories: CategoryMap,
+  date: IsoDate,
+): DayFlow {
+  let actualMinor = 0;
+  let plannedMinor = 0;
+  for (const operation of operations) {
+    if (operation.onDate !== date) continue;
+    const direction = categoryDirection(categories, operation.categoryId);
+    if (operation.entryType === "actual") {
+      actualMinor += direction * operation.amountMinor;
+    } else if (operation.status !== "skipped") {
+      plannedMinor += direction * operation.amountMinor;
+    }
+  }
+  return { actualMinor, plannedMinor };
+}
+
+export function dayFlow(state: FinanceState, date: IsoDate): DayFlow {
+  return dayFlowFor(state.operations, categoryMap(state), date);
 }
 
 export { monthStartOf, monthEndOf, monthKeyOf };

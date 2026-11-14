@@ -5,8 +5,8 @@ import { emptyFinanceState } from "../src/types.ts";
 import type { Category, FinanceState, Operation } from "../src/types.ts";
 
 const categories: Category[] = [
-  { id: "income", name: "Зарплата", kind: "income", isEssential: false, icon: "in", archivedAt: null },
-  { id: "fun", name: "Кафе", kind: "expense", isEssential: false, icon: "cup", archivedAt: null },
+  { id: "income", name: "Зарплата", kind: "income", isEssential: false, icon: "in", archivedAt: null, sortOrder: 0 },
+  { id: "fun", name: "Кафе", kind: "expense", isEssential: false, icon: "cup", archivedAt: null, sortOrder: 0 },
 ];
 
 function op(partial: Partial<Operation> & Pick<Operation, "id" | "entryType" | "categoryId" | "onDate" | "amountMinor">): Operation {

@@ -1,13 +1,18 @@
 import {
   actualBalance,
   addDays,
-  buildSnapshot,
+  activeCategories,
+  archivedCategories,
   emptyFinanceState,
   FINANCE_STATE_VERSION,
   monthKeyOf,
   monthsToClose,
+  moveCategoryBefore,
+  nextSortOrder,
+  normalizeCategoryOrder,
   planRemaining,
   seriesOccurrences,
+  sortCategories,
   todayIso,
 } from "@solo/finance";
 import type {
@@ -21,10 +26,30 @@ import type {
   PlanStatus,
   Recurrence,
   Series,
-  Snapshot,
 } from "@solo/finance";
 
-const STORAGE_KEY = "solo.finance.state.v1";
+import {
+  archiveCategory as archiveCategoryDb,
+  closeMonth,
+  confirmPlan as confirmPlanDb,
+  deleteOperation as deleteOperationDb,
+  deleteSeries as deleteSeriesDb,
+  fetchFinanceState,
+  insertBaseline,
+  insertCategories,
+  insertOperations,
+  insertSeries as insertSeriesDb,
+  replaceFinanceState,
+  resetFinance as resetFinanceDb,
+  restoreCategory as restoreCategoryDb,
+  updateCategory,
+  updateCategoryOrder,
+  updateOperation as updateOperationDb,
+  updateSeriesAmount as updateSeriesAmountDb,
+  upsertSettings,
+} from "./data/financeApi";
+
+export type FinanceStatus = "idle" | "loading" | "ready" | "error";
 
 export interface SeedCategory {
   readonly name: string;
@@ -58,7 +83,16 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-function createCategory(seed: SeedCategory): Category {
+function isoWeekday(date: IsoDate): number {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return day === 0 ? 7 : day;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Неизвестная ошибка";
+}
+
+function createCategory(seed: SeedCategory, sortOrder: number): Category {
   return {
     id: newId(),
     name: seed.name,
@@ -66,54 +100,55 @@ function createCategory(seed: SeedCategory): Category {
     isEssential: seed.kind === "expense" ? seed.isEssential : false,
     icon: seed.name.slice(0, 1).toUpperCase(),
     archivedAt: null,
+    sortOrder,
   };
 }
 
 export function seedCategories(): Category[] {
-  return SEED_CATEGORIES.map(createCategory);
+  return SEED_CATEGORIES.map((seed, index) => createCategory(seed, index));
 }
 
-function parse(raw: string | null): FinanceState | null {
-  if (raw === null) return null;
-  try {
-    const parsed = JSON.parse(raw) as Partial<FinanceState>;
-    if (parsed.version !== FINANCE_STATE_VERSION) return null;
-    if (!Array.isArray(parsed.categories) || !Array.isArray(parsed.operations)) return null;
-    return {
-      version: parsed.version,
-      categories: parsed.categories,
-      operations: parsed.operations,
-      series: parsed.series ?? [],
-      baselines: parsed.baselines ?? [],
-      snapshots: parsed.snapshots ?? [],
-      settings: { hideDeviation: parsed.settings?.hideDeviation ?? false },
-    };
-  } catch {
-    return null;
-  }
-}
-
-function load(): FinanceState {
-  if (typeof localStorage === "undefined") return emptyFinanceState();
-  return parse(localStorage.getItem(STORAGE_KEY)) ?? emptyFinanceState();
-}
-
-let state: FinanceState = load();
+let state: FinanceState = emptyFinanceState();
+let status: FinanceStatus = "idle";
+let lastError: string | null = null;
+let mutationSeq = 0;
+let writeQueue: Promise<void> = Promise.resolve();
 const listeners = new Set<() => void>();
 
-function persist(): void {
-  if (typeof localStorage === "undefined") return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // хранилище может быть переполнено или недоступно: состояние остаётся в памяти
-  }
+function notify(): void {
+  for (const listener of listeners) listener();
 }
 
 function commit(next: FinanceState): void {
   state = next;
-  persist();
-  for (const listener of listeners) listener();
+  notify();
+}
+
+function persist(optimistic: FinanceState, write: () => Promise<void>): void {
+  const previous = state;
+  commit(optimistic);
+  const seq = ++mutationSeq;
+  const run = async (): Promise<void> => {
+    try {
+      await write();
+      const next = await fetchFinanceState();
+      if (seq !== mutationSeq) return;
+      state = next;
+      status = "ready";
+      lastError = null;
+    } catch (error) {
+      if (seq !== mutationSeq) return;
+      try {
+        state = await fetchFinanceState();
+      } catch {
+        state = previous;
+      }
+      status = "error";
+      lastError = errorMessage(error);
+    }
+    notify();
+  };
+  writeQueue = writeQueue.then(run, run);
 }
 
 export function subscribe(listener: () => void): () => void {
@@ -125,12 +160,55 @@ export function getFinanceState(): FinanceState {
   return state;
 }
 
+export function getFinanceStatus(): FinanceStatus {
+  return status;
+}
+
+export function getFinanceError(): string | null {
+  return lastError;
+}
+
+export async function loadFinance(): Promise<void> {
+  status = "loading";
+  lastError = null;
+  notify();
+  try {
+    state = await fetchFinanceState();
+    status = "ready";
+  } catch (error) {
+    status = "error";
+    lastError = errorMessage(error);
+  }
+  notify();
+}
+
+export function clearFinance(): void {
+  state = emptyFinanceState();
+  status = "idle";
+  lastError = null;
+  notify();
+}
+
+export function clearFinanceError(): void {
+  lastError = null;
+  if (status === "error") status = "ready";
+  notify();
+}
+
 export function isConfigured(current: FinanceState = state): boolean {
   return current.baselines.length > 0;
 }
 
 export function getCategoriesInUse(current: FinanceState = state): Category[] {
-  return current.categories.filter((category) => category.archivedAt === null);
+  return activeCategories(current.categories);
+}
+
+export function getArchivedCategories(current: FinanceState = state): Category[] {
+  return archivedCategories(current.categories);
+}
+
+export function getAllCategories(current: FinanceState = state): Category[] {
+  return sortCategories(current.categories);
 }
 
 export function findCategory(categoryId: string, current: FinanceState = state): Category | undefined {
@@ -149,10 +227,19 @@ export function setupFinance(input: { startAmountMinor: number; startDate: IsoDa
     reason: "start",
     createdAt: nowIso(),
   };
-  commit({
+  const hadCategories = state.categories.length > 0;
+  const categories = hadCategories ? state.categories : seedCategories();
+  const hideDeviation = state.settings.hideDeviation;
+  const optimistic: FinanceState = {
     ...state,
-    categories: state.categories.length > 0 ? state.categories : seedCategories(),
+    categories,
     baselines: [baseline],
+    settings: { hideDeviation },
+  };
+  persist(optimistic, async () => {
+    if (!hadCategories) await insertCategories(categories);
+    await insertBaseline(baseline);
+    await upsertSettings(hideDeviation);
   });
 }
 
@@ -181,48 +268,63 @@ export function addCategory(input: {
     isEssential: input.kind === "expense" ? input.isEssential : false,
     icon: name.slice(0, 1).toUpperCase(),
     archivedAt: null,
+    sortOrder: nextSortOrder(state.categories),
   };
-  commit({ ...state, categories: [...state.categories, category] });
+  persist({ ...state, categories: [...state.categories, category] }, async () => {
+    await insertCategories([category]);
+  });
 }
 
 export function renameCategory(id: string, name: string): void {
   const trimmed = name.trim();
   if (trimmed === "") return;
-  commit({
-    ...state,
-    categories: state.categories.map((category) =>
-      category.id === id
-        ? { ...category, name: trimmed, icon: trimmed.slice(0, 1).toUpperCase() }
-        : category,
-    ),
+  const categories = state.categories.map((category) =>
+    category.id === id
+      ? { ...category, name: trimmed, icon: trimmed.slice(0, 1).toUpperCase() }
+      : category,
+  );
+  persist({ ...state, categories }, async () => {
+    await updateCategory(id, { name: trimmed, icon: trimmed.slice(0, 1).toUpperCase() });
   });
 }
 
 export function toggleCategoryEssential(id: string): void {
-  commit({
-    ...state,
-    categories: state.categories.map((category) =>
-      category.id === id ? { ...category, isEssential: !category.isEssential } : category,
-    ),
+  const target = state.categories.find((category) => category.id === id);
+  if (target === undefined) return;
+  const nextEssential = !target.isEssential;
+  const categories = state.categories.map((category) =>
+    category.id === id ? { ...category, isEssential: nextEssential } : category,
+  );
+  persist({ ...state, categories }, async () => {
+    await updateCategory(id, { isEssential: nextEssential });
   });
 }
 
 export function archiveCategory(id: string): void {
   const today = todayIso();
-  commit({
-    ...state,
-    categories: state.categories.map((category) =>
-      category.id === id ? { ...category, archivedAt: today } : category,
-    ),
+  const categories = state.categories.map((category) =>
+    category.id === id ? { ...category, archivedAt: today } : category,
+  );
+  persist({ ...state, categories }, async () => {
+    await archiveCategoryDb(id, today);
   });
 }
 
 export function restoreCategory(id: string): void {
-  commit({
-    ...state,
-    categories: state.categories.map((category) =>
-      category.id === id ? { ...category, archivedAt: null } : category,
-    ),
+  const categories = normalizeCategoryOrder(
+    state.categories.map((category) => (category.id === id ? { ...category, archivedAt: null } : category)),
+  );
+  persist({ ...state, categories }, async () => {
+    await restoreCategoryDb(id);
+    await updateCategoryOrder(categories);
+  });
+}
+
+/** Перетаскивание: категория встаёт на место целевой. Логику прогресса не затрагивает. */
+export function moveCategory(draggedId: string, targetId: string): void {
+  const categories = moveCategoryBefore(state.categories, draggedId, targetId);
+  persist({ ...state, categories }, async () => {
+    await updateCategoryOrder(categories);
   });
 }
 
@@ -254,7 +356,9 @@ export function addOperation(input: NewOperationInput): string {
     note: input.note ?? null,
     createdAt: nowIso(),
   };
-  commit({ ...state, operations: [...state.operations, operation] });
+  persist({ ...state, operations: [...state.operations, operation] }, async () => {
+    await insertOperations([operation]);
+  });
   return id;
 }
 
@@ -262,26 +366,26 @@ export function updateOperation(
   id: string,
   patch: Partial<Pick<Operation, "categoryId" | "onDate" | "amountMinor" | "note">>,
 ): void {
-  commit({
-    ...state,
-    operations: state.operations.map((operation) =>
-      operation.id === id
-        ? {
-            ...operation,
-            ...patch,
-            note: patch.note === undefined ? operation.note : patch.note,
-          }
-        : operation,
-    ),
+  const operations = state.operations.map((operation) =>
+    operation.id === id
+      ? {
+          ...operation,
+          ...patch,
+          note: patch.note === undefined ? operation.note : patch.note,
+        }
+      : operation,
+  );
+  persist({ ...state, operations }, async () => {
+    await updateOperationDb(id, patch);
   });
 }
 
 export function deleteOperation(id: string): void {
-  commit({
-    ...state,
-    operations: state.operations
-      .filter((operation) => operation.id !== id)
-      .map((operation) => (operation.planId === id ? { ...operation, planId: null } : operation)),
+  const operations = state.operations
+    .filter((operation) => operation.id !== id)
+    .map((operation) => (operation.planId === id ? { ...operation, planId: null } : operation));
+  persist({ ...state, operations }, async () => {
+    await deleteOperationDb(id);
   });
 }
 
@@ -310,43 +414,49 @@ export function confirmPlan(input: ConfirmPlanInput): void {
     createdAt: nowIso(),
   };
   const remainingAfter = plan.amountMinor - input.amountMinor;
-  const planStatus: PlanStatus =
-    input.keepOpen && remainingAfter > 0 ? "partial" : "done";
-  commit({
-    ...state,
-    operations: [
-      ...state.operations.map((operation) =>
-        operation.id === plan.id ? { ...operation, status: planStatus } : operation,
-      ),
-      fact,
-    ],
+  const planStatus: PlanStatus = input.keepOpen && remainingAfter > 0 ? "partial" : "done";
+  const operations = [
+    ...state.operations.map((operation) =>
+      operation.id === plan.id ? { ...operation, status: planStatus } : operation,
+    ),
+    fact,
+  ];
+  persist({ ...state, operations }, async () => {
+    await confirmPlanDb({
+      planId: input.planId,
+      factId: fact.id,
+      amountMinor: input.amountMinor,
+      onDate: input.onDate,
+      keepOpen: input.keepOpen,
+      note: input.note ?? null,
+    });
   });
 }
 
 export function skipPlan(planId: string): void {
-  commit({
-    ...state,
-    operations: state.operations.map((operation) =>
-      operation.id === planId ? { ...operation, status: "skipped" } : operation,
-    ),
+  const operations = state.operations.map((operation) =>
+    operation.id === planId ? { ...operation, status: "skipped" as const } : operation,
+  );
+  persist({ ...state, operations }, async () => {
+    await updateOperationDb(planId, { status: "skipped" });
   });
 }
 
 export function reopenPlan(planId: string): void {
-  commit({
-    ...state,
-    operations: state.operations.map((operation) =>
-      operation.id === planId ? { ...operation, status: "pending" } : operation,
-    ),
+  const operations = state.operations.map((operation) =>
+    operation.id === planId ? { ...operation, status: "pending" as const } : operation,
+  );
+  persist({ ...state, operations }, async () => {
+    await updateOperationDb(planId, { status: "pending" });
   });
 }
 
 export function linkFactToPlan(factId: string, planId: string | null): void {
-  commit({
-    ...state,
-    operations: state.operations.map((operation) =>
-      operation.id === factId ? { ...operation, planId } : operation,
-    ),
+  const operations = state.operations.map((operation) =>
+    operation.id === factId ? { ...operation, planId } : operation,
+  );
+  persist({ ...state, operations }, async () => {
+    await updateOperationDb(factId, { planId });
   });
 }
 
@@ -374,7 +484,7 @@ export function addSeries(input: NewSeriesInput): void {
     recurrence: input.recurrence,
     startDate: input.startDate,
     dayOfMonth,
-    weekday: input.recurrence === "weekly" ? new Date(`${input.startDate}T00:00:00Z`).getUTCDay() : null,
+    weekday: input.recurrence === "weekly" ? isoWeekday(input.startDate) : null,
     occurrencesCount: input.occurrencesCount,
     endsOn: input.endsOn,
     archivedAt: null,
@@ -400,28 +510,28 @@ export function addSeries(input: NewSeriesInput): void {
       note: series.title,
       createdAt: nowIso(),
     }));
-  commit({
-    ...state,
-    series: [...state.series, series],
-    operations: [...state.operations, ...created],
+  persist({ ...state, series: [...state.series, series], operations: [...state.operations, ...created] }, async () => {
+    await insertSeriesDb(series, created);
   });
 }
 
 export function deleteSeries(seriesId: string): void {
   const today = todayIso();
-  commit({
-    ...state,
-    series: state.series.filter((series) => series.id !== seriesId),
-    operations: state.operations
-      .filter((operation) => {
-        if (operation.seriesId !== seriesId) return true;
-        if (operation.entryType === "actual") return true;
-        if (operation.status === "done" || operation.status === "skipped") return true;
-        return operation.onDate < today;
-      })
-      .map((operation) =>
-        operation.seriesId === seriesId ? { ...operation, seriesId: null } : operation,
-      ),
+  const series = state.series.filter((item) => item.id !== seriesId);
+  const operations = state.operations
+    .filter((operation) => {
+      if (operation.seriesId !== seriesId) return true;
+      if (operation.entryType === "actual") return true;
+      if (operation.status === "done" || operation.status === "skipped") return true;
+      return operation.onDate < today;
+    })
+    .map((operation) =>
+      operation.seriesId === seriesId
+        ? { ...operation, seriesId: null, seriesOccurrenceDate: null }
+        : operation,
+    );
+  persist({ ...state, series, operations }, async () => {
+    await deleteSeriesDb(seriesId);
   });
 }
 
@@ -431,19 +541,19 @@ export function updateSeriesAmount(seriesId: string, amountMinor: number): void 
   if (series === undefined) return;
   const dates = seriesOccurrences({ ...series, amountMinor }, today);
   const futureDates = new Set(dates);
-  commit({
-    ...state,
-    series: state.series.map((item) => (item.id === seriesId ? { ...item, amountMinor } : item)),
-    operations: state.operations.map((operation) => {
-      if (operation.seriesId !== seriesId) return operation;
-      if (operation.entryType !== "planned") return operation;
-      if (operation.status === "done" || operation.status === "skipped") return operation;
-      if (operation.onDate < today) return operation;
-      if (operation.seriesOccurrenceDate === null || !futureDates.has(operation.seriesOccurrenceDate)) {
-        return operation;
-      }
-      return { ...operation, amountMinor };
-    }),
+  const nextSeries = state.series.map((item) => (item.id === seriesId ? { ...item, amountMinor } : item));
+  const operations = state.operations.map((operation) => {
+    if (operation.seriesId !== seriesId) return operation;
+    if (operation.entryType !== "planned") return operation;
+    if (operation.status === "done" || operation.status === "skipped") return operation;
+    if (operation.onDate < today) return operation;
+    if (operation.seriesOccurrenceDate === null || !futureDates.has(operation.seriesOccurrenceDate)) {
+      return operation;
+    }
+    return { ...operation, amountMinor };
+  });
+  persist({ ...state, series: nextSeries, operations }, async () => {
+    await updateSeriesAmountDb(seriesId, amountMinor, today);
   });
 }
 
@@ -459,27 +569,71 @@ export function acceptReality(date: IsoDate = todayIso()): void {
     reason: "accept_reality",
     createdAt: nowIso(),
   };
-  commit({ ...state, baselines: [...state.baselines, baseline] });
+  persist({ ...state, baselines: [...state.baselines, baseline] }, async () => {
+    await insertBaseline(baseline);
+  });
 }
 
+let snapshotsRunning = false;
+
 export function ensureSnapshots(today: IsoDate = todayIso()): void {
+  if (snapshotsRunning || status !== "ready") return;
   const pending = monthsToClose(state, today);
   if (pending.length === 0) return;
-  const snapshots: Snapshot[] = pending.map((item) => item.snapshot);
-  commit({ ...state, snapshots: [...state.snapshots, ...snapshots] });
+  snapshotsRunning = true;
+  const seq = ++mutationSeq;
+  const run = async (): Promise<void> => {
+    try {
+      for (const item of pending) {
+        await closeMonth(`${item.monthKey}-01`, "auto");
+      }
+      const next = await fetchFinanceState();
+      if (seq === mutationSeq) {
+        state = next;
+        status = "ready";
+        lastError = null;
+      }
+    } catch (error) {
+      if (seq === mutationSeq) {
+        status = "error";
+        lastError = errorMessage(error);
+      }
+    } finally {
+      snapshotsRunning = false;
+      notify();
+    }
+  };
+  writeQueue = writeQueue.then(run, run);
 }
 
 export function closeCurrentMonth(today: IsoDate = todayIso()): void {
   const monthKey = monthKeyOf(today);
   if (state.snapshots.some((snapshot) => snapshot.monthStart === `${monthKey}-01`)) return;
-  const snapshot = buildSnapshot(state, monthKey, "manual", today);
-  commit({ ...state, snapshots: [...state.snapshots, snapshot] });
+  const seq = ++mutationSeq;
+  const run = async (): Promise<void> => {
+    try {
+      await closeMonth(`${monthKey}-01`, "manual");
+      const next = await fetchFinanceState();
+      if (seq === mutationSeq) {
+        state = next;
+        status = "ready";
+        lastError = null;
+      }
+    } catch (error) {
+      if (seq === mutationSeq) {
+        status = "error";
+        lastError = errorMessage(error);
+      }
+    }
+    notify();
+  };
+  writeQueue = writeQueue.then(run, run);
 }
 
 export function toggleHideDeviation(): void {
-  commit({
-    ...state,
-    settings: { ...state.settings, hideDeviation: !state.settings.hideDeviation },
+  const next = !state.settings.hideDeviation;
+  persist({ ...state, settings: { ...state.settings, hideDeviation: next } }, async () => {
+    await upsertSettings(next);
   });
 }
 
@@ -496,10 +650,20 @@ export function exportJson(): string {
 }
 
 export function resetFinance(): void {
-  commit(emptyFinanceState());
+  persist(emptyFinanceState(), async () => {
+    await resetFinanceDb();
+  });
 }
 
 export function addSampleData(today: IsoDate = todayIso()): void {
+  const sample = sampleFinanceState(today);
+  if (sample === null) return;
+  persist(sample, async () => {
+    await replaceFinanceState(sample);
+  });
+}
+
+function sampleFinanceState(today: IsoDate): FinanceState | null {
   const monthKey = monthKeyOf(today);
   const categories = seedCategories();
   const pick = (name: string) => categories.find((category) => category.name === name)?.id;
@@ -509,7 +673,7 @@ export function addSampleData(today: IsoDate = todayIso()): void {
   const cafe = pick("Кафе");
   const credit = pick("Кредит");
   const phone = pick("Связь");
-  if (salary === undefined || rent === undefined || food === undefined || cafe === undefined) return;
+  if (salary === undefined || rent === undefined || food === undefined || cafe === undefined) return null;
 
   const daysInMonth = Number(new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)), 0).getDate());
   const on = (day: number): IsoDate => `${monthKey}-${String(Math.min(day, daysInMonth)).padStart(2, "0")}`;
@@ -522,11 +686,11 @@ export function addSampleData(today: IsoDate = todayIso()): void {
     amountMinor: number,
     note: string,
     planId: string | null = null,
-    status?: PlanStatus,
+    planStatus?: PlanStatus,
   ): Operation => ({
     id: newId(),
     entryType,
-    status: entryType === "actual" ? "actual" : status ?? "pending",
+    status: entryType === "actual" ? "actual" : planStatus ?? "pending",
     categoryId,
     onDate,
     amountMinor,
@@ -553,7 +717,7 @@ export function addSampleData(today: IsoDate = todayIso()): void {
   if (credit !== undefined) operations.push(make("planned", credit, on(20), 1500000, "Платёж по кредиту"));
   if (phone !== undefined) operations.push(make("planned", phone, addDays(today, -1), 60000, "Связь"));
 
-  commit({
+  return {
     ...emptyFinanceState(),
     categories,
     operations,
@@ -566,7 +730,7 @@ export function addSampleData(today: IsoDate = todayIso()): void {
         createdAt: nowIso(),
       },
     ],
-  });
+  };
 }
 
 export function planRemainingOf(plan: Operation): number {

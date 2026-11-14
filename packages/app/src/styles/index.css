@@ -21,6 +21,13 @@
   --color-danger: #e5484d;
   --color-focus: #ba9cff;
 
+  /* Направление денег. Цвет — навигационная подсказка, а не оценка:
+     расход не «плохой», доход не «хороший». */
+  --color-income: #6fdc9f;
+  --color-income-muted: rgba(111, 220, 159, 0.12);
+  --color-expense: #ff9a8b;
+  --color-expense-muted: rgba(255, 154, 139, 0.1);
+
   --font-sans: "Inter Variable", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 

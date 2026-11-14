@@ -14,6 +14,7 @@ function series(partial: Partial<Series> & Pick<Series, "recurrence" | "startDat
     occurrencesCount: null,
     endsOn: null,
     archivedAt: null,
+    sortOrder: 0,
     ...partial,
   };
 }

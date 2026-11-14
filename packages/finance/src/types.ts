@@ -15,6 +15,11 @@ export interface Category {
   readonly isEssential: boolean;
   readonly icon: string;
   readonly archivedAt: IsoDate | null;
+  /**
+   * Порядок отображения в списках. Влияет только на восприятие:
+   * ни баланс, ни отклонение, ни отчёты от него не зависят.
+   */
+  readonly sortOrder: number;
 }
 
 export interface Operation {

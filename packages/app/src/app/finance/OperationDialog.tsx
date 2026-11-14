@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { addOperation, updateOperation, getCategoriesInUse } from "./store";
+import { addOperation, updateOperation, findCategory, getCategoriesInUse } from "./store";
 import { Button, Dialog, Field, Money, Select, TextInput } from "./components/ui";
 import { parseRub } from "@solo/finance";
 import type { EntryType, IsoDate, Operation } from "@solo/finance";
@@ -27,7 +27,11 @@ export function OperationDialog({ today, operation, presetDate, onClose }: Opera
   const [error, setError] = useState<string | null>(null);
 
   const amountMinor = parseRub(amount);
-  const options = categories;
+  const currentArchived =
+    operation === undefined || categories.some((category) => category.id === operation.categoryId)
+      ? undefined
+      : findCategory(operation.categoryId);
+  const options = currentArchived === undefined ? categories : [...categories, currentArchived];
 
   const submit = () => {
     if (amountMinor === null || amountMinor <= 0) {
