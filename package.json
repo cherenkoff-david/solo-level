@@ -6,13 +6,25 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "node --test \"packages/domain/test/**/*.test.ts\" \"packages/finance/test/**/*.test.ts\"",
+    "test": "node --test \"packages/domain/test/**/*.test.ts\" \"packages/finance/test/**/*.test.ts\" \"packages/app/test/**/*.test.ts\"",
     "gen:progression": "node scripts/gen-progression.ts",
     "dev": "npm run dev --workspace=@solo/app",
     "typecheck": "npm run typecheck --workspace=@solo/app",
-    "build": "npm run build --workspace=@solo/app"
+    "build": "npm run build --workspace=@solo/app",
+    "db:start": "supabase start",
+    "db:start:slim": "SUPABASE_USE_SLIM_IMAGES=true supabase start",
+    "db:stop": "supabase stop",
+    "db:status": "supabase status",
+    "db:reset": "supabase db reset",
+    "db:new": "supabase migration new",
+    "db:diff": "supabase db diff",
+    "db:link": "supabase link",
+    "db:push": "supabase db push"
   },
   "engines": {
     "node": ">=22.18.0"
+  },
+  "devDependencies": {
+    "supabase": "^3.1.0"
   }
 }
