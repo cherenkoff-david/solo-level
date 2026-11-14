@@ -103,7 +103,7 @@ packages/
 
 ## 5. Схема данных
 
-Все таблицы, доступные клиенту, имеют `user_id` и политику доступа на уровне строк (§6).
+**Реализовано миграцией** `supabase/migrations/20261114120000_profiles_and_solo.sql`; подробное описание полей и ограничений — `../database/solo-schema.md`. Все таблицы, доступные клиенту, имеют `user_id` и политику доступа на уровне строк (§6).
 
 ### 5.1. Пользовательские сущности
 
@@ -111,12 +111,14 @@ packages/
 | --- | --- | --- |
 | `profiles` | `id` (= id пользователя аутентификации), `timezone`, `week_start`, `day_start_hour`, `level_curve_version`, `current_rule_version`, `created_at` | Настройки периода и версии правил из системы прогрессии |
 | `spheres` | `id`, `user_id`, `name`, `color`, `archived_at`, `created_at` | 3–5 сфер; архивирование вместо удаления |
-| `goals` | `id`, `user_id`, `title`, `type`, `indicator_*`, `status`, `created_at` | Не более одного активного числового индикатора |
+| `goals` | `id`, `user_id`, `title`, `goal_type`, `indicator_label`, `indicator_unit`, `indicator_target`, `indicator_current`, `status`, `created_at` | Не более одного активного числового индикатора |
 | `milestones` | `id`, `user_id`, `goal_id`, `title`, `effort`, `completed_at` | Веха-контейнер (§6.3 системы прогрессии) |
-| `habits` | `id`, `user_id`, `title`, `sphere_id`, `effort`, `schedule_*`, `milestone_id`, `archived_at` | Расписание: ежедневно / дни недели / N в неделю / N в месяц |
-| `tasks` | `id`, `user_id`, `title`, `sphere_id`, `effort`, `goal_id`, `milestone_id`, `status`, `due_date` | Разовое действие, даёт XP один раз |
+| `habits` | `id`, `user_id`, `title`, `sphere_id`, `goal_id`, `milestone_id`, `effort`, `schedule_kind`, `schedule_weekdays`, `schedule_count`, `starts_on`, `archived_at` | Расписание: `daily` / `weekdays` / `weekly_count` / `monthly_count`; вид согласован с полями через `check` |
+| `tasks` | `id`, `user_id`, `title`, `sphere_id`, `effort`, `goal_id`, `milestone_id`, `status`, `due_date` | Разовая задача, даёт XP один раз |
 | `completions` | `id`, `user_id`, `source_type`, `source_id`, `period_key`, `occurred_at`, `note`, `volume` | Факт выполнения; **не** уникален по периоду: дополнительные отметки допустимы как статистика, XP не повторяется |
-| `daily_checkins` | `id`, `user_id`, `local_date`, `state`, `note` | Необязательная дневная отметка самонаблюдения («полезно / нейтрально / мешает»); **не влияет на прогрессию**, нужна для оценки догфудинга |
+| `daily_checkins` | `id`, `user_id`, `local_date`, `state`, `note` | Необязательная дневная отметка самонаблюдения (`useful` / `neutral` / `distracting`); **не влияет на прогрессию**, нужна для оценки догфудинга |
+
+Раздел `profiles` создаётся триггером при регистрации в Supabase Auth; клиент его не вставляет. `user_id` во всех таблицах — внешний ключ на `auth.users(id)` с `on delete cascade`.
 
 **Про `completions` и уникальность.** Уникальность на период стоит **на журнале наград**, а не на фактах выполнения. Причина: система прогрессии, §5.4 разрешает несколько отметок одной привычки за период — они сохраняются как личная статистика, но не добавляют опыт. Если бы ограничение стояло на `completions`, лишние отметки было бы невозможно сохранить; если бы его не было на журнале, повторная отметка удваивала бы XP.
 
@@ -140,7 +142,9 @@ reward_ledger (
   total_xp       integer not null,   -- может быть отрицательным только для reversal
   rule_version   text not null,
   reverses_id    uuid,               -- для компенсирующей записи
-  idempotency_key text not null
+  idempotency_key text generated always as (
+    source_type || ':' || source_id::text || ':' || period_key || ':' || event_type
+  ) stored
 )
 ```
 
