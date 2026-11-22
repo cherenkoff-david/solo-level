@@ -29,6 +29,7 @@ packages/
     src/
       types.ts        типы: категория, операция, серия, базовая линия, снимок
       money.ts        копейки: сложение, форматирование «1 234,50 ₽», парсинг ввода
+                      (parseRub — только суммы операций; parseRubSigned — остатки, включая долг)
       balance.ts      target(D), fact(D), deviation(D), накопленное отклонение
       plan.ts         остаток плана, применение фактов, состояния плана
       series.ts       генерация вхождений, прижатие 29–31 к последнему дню месяца
@@ -54,35 +55,44 @@ packages/
 
 ### 2.1. Публичная поверхность
 
-Пакет экспортирует функции, а не внутренние структуры. Минимальный набор:
+Пакет экспортирует функции и типы, а не внутренние структуры. Минимальный набор:
 
 ```ts
 // money.ts
-export function formatRub(minor: number): string;
-export function parseRub(input: string): number | null;
+export function formatRub(amountMinor: Money): string;
+export function formatRubCompact(amountMinor: Money): string;
+export function parseRub(input: string): Money | null;        // суммы операций, только > 0
+export function parseRubSigned(input: string): Money | null;  // остатки: минус = долг
 
-// balance.ts
-export interface BalanceContext {
-  readonly baseline: Baseline;
-  readonly operations: readonly Operation[];
-  readonly categories: readonly Category[];
-  readonly lastCheckpointDate?: string;
-}
-export function targetBalance(ctx: BalanceContext, date: string): number;
-export function actualBalance(ctx: BalanceContext, date: string): number;
-export function deviationAt(ctx: BalanceContext, date: string): number;
-export function accumulatedDeviation(ctx: BalanceContext, snapshots: readonly Snapshot[]): number;
+// balance.ts — все расчёты принимают состояние раздела, а не набор полей
+export function targetBalance(state: FinanceState, date: IsoDate): Money;
+export function actualBalance(state: FinanceState, date: IsoDate): Money;
+export function deviationAt(state: FinanceState, date: IsoDate): Money;
+export function accumulatedDeviation(state: FinanceState, today: IsoDate): Money;
+export function accountingStart(state: FinanceState): IsoDate | null;
+export function monthComparison(state: FinanceState, monthKey: string): MonthComparisonRow[];
+export function describeDeviation(deviationMinor: Money): DeviationFacts;
+export function deviationFacts(row: MonthComparisonRow): DeviationFacts;
+export function cashflow(state: FinanceState, from: IsoDate, to: IsoDate): CashflowPoint[];
+export function firstShortage(state: FinanceState, from: IsoDate, to: IsoDate): ShortageForecast | null;
+export function dayFlow(state: FinanceState, date: IsoDate): DayFlow;
 
 // series.ts
-export function occurrences(series: Series, until: string): string[];
+export function seriesOccurrences(series: Series, until?: IsoDate): IsoDate[];
 
 // plan.ts
-export interface PlanState { status: PlanStatus; remainingMinor: number }
-export function planState(plan: Operation, linkedFacts: readonly Operation[]): PlanState;
+export function planRemaining(plan: Operation, operations: readonly Operation[]): Money;
+export function effectiveStatus(plan: Operation, operations: readonly Operation[], today: IsoDate): PlanStatus;
+export function confirmationQueue(state: FinanceState, today: IsoDate): ConfirmationItem[];
 
 // periods.ts
-export function monthKey(date: string, timezone: string): string;
-export function monthBounds(monthKey: string): { start: string; end: string };
+export function monthKeyOf(date: IsoDate): string;
+export function monthStartOf(date: IsoDate): IsoDate;
+export function monthEndOf(date: IsoDate): IsoDate;
+export function monthRangeBounds(
+  fromMonth: string,
+  toMonth: string,
+): { from: IsoDate; to: IsoDate };
 ```
 
 Точные сигнатуры уточняются при реализации; ограничение — не отдавать наружу изменяемые структуры и не давать клиенту считать деньги самостоятельно по своим формулам.
@@ -111,21 +121,24 @@ export function monthBounds(monthKey: string): { start: string; end: string };
 ```text
 packages/app/src/app/
   finance/
-    FinanceOverview.tsx     два числа, отклонение, график, блок план/факт, плашка
-    FinanceCalendar.tsx     сетка месяца
-    FinanceOperations.tsx   список, фильтры, поиск, формы
-    FinanceSettings.tsx     категории, серии, базовая линия, режим «без оценок»
+    FinanceSection.tsx      оболочка раздела: вкладки, статус загрузки, запуск обучения
+    OverviewScreen.tsx      баланс, отклонение, график, план/факт, очередь подтверждений
+    CalendarScreen.tsx      сетка месяца
+    OperationsScreen.tsx    список, фильтры, поиск
+    SettingsScreen.tsx      точка отсчёта, серии, отображение, данные, ссылка в профиль
+    CategoryManager.tsx     управление категориями
+    SeriesDialog.tsx        серия повторяющихся операций
+    OperationDialog.tsx     создание и правка плана и факта
+    ConfirmPlanDialog.tsx   «подтвердить / изменить / не было»
+    CashflowChart.tsx       две линии, выбор дня мышью и с клавиатуры, панель дня
+    deviationWords.ts       слова направления расхождения («сверх плана», «ниже плана»)
+    privacy.tsx             режим «суммы скрыты» и автозатемнение
     components/
-      BalanceHeadline.tsx   факт крупно, цель мельче, дельта с цветом
-      CashflowChart.tsx     две линии, выбор дня мышью и с клавиатуры, панель дня
-      PlanFactList.tsx      категории за месяц, раскрытие, строка «сверх плана»
-      ConfirmQueue.tsx      «подтвердить / изменить / не было»
-      OperationForm.tsx     общая форма плана и факта
-      MoneyInput.tsx        ввод рублей с копейками
       ui.tsx                карточки, кнопки, деньги и DeviationText — единственное место,
                             где расхождение превращается в слова
     data/
       financeApi.ts         запросы к Supabase, преобразование snake_case → типы пакета
+    tour/                   шаги обучения, оверлей и иллюстрации
     store.ts                состояние раздела: загрузка из БД, оптимистичные правки, очередь записи
     useFinance.ts           подписка React на состояние, статус и ошибку
 ```
@@ -134,7 +147,7 @@ packages/app/src/app/
 
 ### 3.2. Маршруты и навигация
 
-Второй пункт меню после «Сегодня» либо пятый после «Настройки» — вопрос вкуса, решение ниже. Маршруты:
+Маршруты раздела:
 
 | Маршрут | Экран |
 | --- | --- |
