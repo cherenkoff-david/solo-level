@@ -4,9 +4,21 @@ import { isSupabaseConfigured, supabase } from "../../lib/supabase";
 
 export type AuthStatus = "unconfigured" | "loading" | "signedOut" | "signedIn";
 
+export interface AuthUser {
+  readonly id: string;
+  readonly email: string;
+  /** ISO-время регистрации; null, если провайдер его не отдал. */
+  readonly createdAt: string | null;
+  /** ISO-время последнего входа; null, если провайдер его не отдал. */
+  readonly lastSignInAt: string | null;
+  /** Способ входа: email, magiclink, oauth и т. п. */
+  readonly provider: string | null;
+}
+
 export interface AuthState {
   readonly status: AuthStatus;
   readonly session: Session | null;
+  readonly user: AuthUser | null;
   readonly email: string | null;
   readonly error: string | null;
   readonly notice: string | null;
@@ -17,6 +29,7 @@ let initialized = false;
 let state: AuthState = {
   status: isSupabaseConfigured ? "loading" : "unconfigured",
   session: null,
+  user: null,
   email: null,
   error: null,
   notice: null,
@@ -26,11 +39,29 @@ function notify(): void {
   for (const listener of listeners) listener();
 }
 
+function toAuthUser(session: Session | null): AuthUser | null {
+  if (session === null) return null;
+  const user = session.user;
+  const email = user.email ?? null;
+  if (email === null) return null;
+  const provider =
+    typeof user.app_metadata?.provider === "string" ? user.app_metadata.provider : null;
+  return {
+    id: user.id,
+    email,
+    createdAt: user.created_at ?? null,
+    lastSignInAt: user.last_sign_in_at ?? null,
+    provider,
+  };
+}
+
 function applySession(session: Session | null): void {
+  const user = toAuthUser(session);
   state = {
     status: session === null ? "signedOut" : "signedIn",
     session,
-    email: session?.user.email ?? null,
+    user,
+    email: user?.email ?? null,
     error: null,
     notice: session === null ? state.notice : null,
   };

@@ -1,12 +1,7 @@
 import { useState } from "react";
 
 import { Button, Card, Field, TextInput } from "../finance/components/ui";
-import {
-  sendMagicLink,
-  signInWithPassword,
-  signOutUser,
-  signUpWithPassword,
-} from "./auth";
+import { sendMagicLink, signInWithPassword, signUpWithPassword } from "./auth";
 import type { AuthState } from "./auth";
 
 export function AuthPanel({ auth }: { readonly auth: AuthState }) {
@@ -102,13 +97,5 @@ export function AuthPanel({ auth }: { readonly auth: AuthState }) {
         </div>
       </Card>
     </div>
-  );
-}
-
-export function SignOutButton() {
-  return (
-    <Button variant="ghost" size="sm" onClick={() => void signOutUser()}>
-      Выйти
-    </Button>
   );
 }

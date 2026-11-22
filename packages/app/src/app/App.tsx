@@ -8,6 +8,7 @@ import { OverviewScreen } from "./finance/OverviewScreen";
 import { CalendarScreen } from "./finance/CalendarScreen";
 import { OperationsScreen } from "./finance/OperationsScreen";
 import { SettingsScreen } from "./finance/SettingsScreen";
+import { ProfileScreen } from "./profile/ProfileScreen";
 
 export function App() {
   return (
@@ -18,6 +19,7 @@ export function App() {
         <Route path="progress" element={<SoloPlaceholder />} />
         <Route path="spheres" element={<SoloPlaceholder />} />
         <Route path="settings" element={<SoloPlaceholder />} />
+        <Route path="profile" element={<ProfileScreen />} />
         <Route path="finance" element={<FinanceSection />}>
           <Route index element={<OverviewScreen />} />
           <Route path="calendar" element={<CalendarScreen />} />

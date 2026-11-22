@@ -22,9 +22,8 @@ import {
 import { Button, Card, CardHeader, Chip, DeviationText, Field, Money, Toggle, TextInput } from "./components/ui";
 import { CategoryManager } from "./CategoryManager";
 import { useFinanceState, useToday } from "./useFinance";
-import { SignOutButton } from "../auth/AuthPanel";
 import { useAuthState } from "../auth/useAuth";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export function SettingsScreen() {
   const auth = useAuthState();
@@ -232,10 +231,15 @@ export function SettingsScreen() {
       </Card>
 
       <Card>
-        <CardHeader title="Аккаунт" hint="Один пользователь — один набор данных в облаке" />
+        <CardHeader title="Аккаунт" hint="Профиль, способ входа и выход — в личном кабинете" />
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
           <span className="text-sm text-text-muted">{auth.email ?? "—"}</span>
-          <SignOutButton />
+          <Link
+            to="/profile"
+            className="text-sm text-text-muted underline-offset-2 transition-colors hover:text-text hover:underline"
+          >
+            открыть профиль
+          </Link>
         </div>
       </Card>
     </div>
