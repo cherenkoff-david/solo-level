@@ -53,6 +53,7 @@ export interface Series {
 export interface Baseline {
   readonly id: string;
   readonly effectiveDate: IsoDate;
+  /** Может быть отрицательным: минус на руках — это долг, а не ошибка ввода. */
   readonly amountMinor: Money;
   readonly reason: "start" | "accept_reality";
   readonly createdAt: string;

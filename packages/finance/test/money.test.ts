@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatRub, parseRub, formatRubCompact } from "../src/money.ts";
+import { formatRub, parseRub, parseRubSigned, formatRubCompact } from "../src/money.ts";
 
 test("formatRub скрывает нулевые копейки", () => {
   assert.equal(formatRub(7000), "70\u00a0₽");
@@ -32,4 +32,33 @@ test("parseRub отвергает мусор и отрицательные зн�
   assert.equal(parseRub("abc"), null);
   assert.equal(parseRub("-100"), null);
   assert.equal(parseRub("1,234"), null);
+});
+
+test("parseRubSigned принимает отрицательный остаток", () => {
+  assert.equal(parseRubSigned("-2500"), -250000);
+  assert.equal(parseRubSigned("−2 500"), -250000);
+  assert.equal(parseRubSigned("-1234,56"), -123456);
+});
+
+test("parseRubSigned принимает обычные суммы как положительные", () => {
+  assert.equal(parseRubSigned("12 500"), 1250000);
+  assert.equal(parseRubSigned("+500"), 50000);
+});
+
+test("parseRubSigned различает нулевой и пустой ввод", () => {
+  assert.equal(parseRubSigned("0"), 0);
+  assert.equal(parseRubSigned("-"), null);
+  assert.equal(parseRubSigned(""), null);
+});
+
+test("parseRubSigned отвергает мусор и лишние знаки", () => {
+  assert.equal(parseRubSigned("--100"), null);
+  assert.equal(parseRubSigned("-1,234"), null);
+  assert.equal(parseRubSigned("abc"), null);
+  assert.equal(parseRubSigned("1-"), null);
+});
+
+test("Сумма операции по-прежнему не может быть отрицательной", () => {
+  assert.equal(parseRub("-2500"), null);
+  assert.equal(parseRub("−2 500"), null);
 });

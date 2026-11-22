@@ -433,3 +433,75 @@ test("Накопленное отклонение описывается тем 
   assert.equal(facts.direction, "under");
   assert.equal(facts.amountMinor, 500000, "потратили 5 000 — значит ниже плана на 5 000");
 });
+
+// ---------------------------------------------------------------------------
+// Отрицательный стартовый остаток (долг на руках)
+// ---------------------------------------------------------------------------
+
+test("Отрицательная базовая линия даёт отрицательный факт и прогноз", () => {
+  const state = withBaseline([], [
+    {
+      id: "b1",
+      effectiveDate: "2026-11-14",
+      amountMinor: -250000,
+      reason: "start",
+      createdAt: "2026-11-14T00:00:00.000Z",
+    },
+  ]);
+  assert.equal(actualBalance(state, "2026-11-20"), -250000);
+  assert.equal(targetBalance(state, "2026-11-20"), -250000);
+});
+
+test("Доход закрывает долг: факт растёт от отрицательного значения", () => {
+  const state = withBaseline(
+    [op({ id: "i1", entryType: "actual", categoryId: "income", onDate: "2026-11-15", amountMinor: 100000 })],
+    [
+      {
+        id: "b1",
+        effectiveDate: "2026-11-14",
+        amountMinor: -250000,
+        reason: "start",
+        createdAt: "2026-11-14T00:00:00.000Z",
+      },
+    ],
+  );
+  assert.equal(actualBalance(state, "2026-11-14"), -250000);
+  assert.equal(actualBalance(state, "2026-11-15"), -150000);
+});
+
+test("График с отрицательным стартом не теряет точки и проходит через ноль", () => {
+  const state = withBaseline(
+    [op({ id: "i1", entryType: "actual", categoryId: "income", onDate: "2026-11-18", amountMinor: 400000 })],
+    [
+      {
+        id: "b1",
+        effectiveDate: "2026-11-14",
+        amountMinor: -250000,
+        reason: "start",
+        createdAt: "2026-11-14T00:00:00.000Z",
+      },
+    ],
+  );
+  const points = cashflow(state, "2026-11-01", "2026-11-30");
+  assert.equal(points[0]?.fact, -250000);
+  assert.equal(points.at(-1)?.fact, 150000);
+  assert.ok(points.some((point) => point.fact < 0) && points.some((point) => point.fact > 0));
+});
+
+test("Отрицательная базовая линия не влияет на расхождение с планом", () => {
+  const state = withBaseline(
+    [op({ id: "p1", entryType: "planned", categoryId: "food", onDate: "2026-11-20", amountMinor: 100000 })],
+    [
+      {
+        id: "b1",
+        effectiveDate: "2026-11-14",
+        amountMinor: -250000,
+        reason: "start",
+        createdAt: "2026-11-14T00:00:00.000Z",
+      },
+    ],
+  );
+  assert.equal(actualBalance(state, "2026-11-20"), -250000);
+  assert.equal(targetBalance(state, "2026-11-20"), -350000);
+  assert.equal(deviationAt(state, "2026-11-20"), 100000, "долг не искажает отклонение");
+});

@@ -14,7 +14,7 @@ import { useFinanceError, useFinanceState, useFinanceStatus, useToday } from "./
 import { AuthPanel } from "../auth/AuthPanel";
 import { useAuthState } from "../auth/useAuth";
 import { Button, Card, Field, TextInput } from "./components/ui";
-import { parseRub, todayIso } from "@solo/finance";
+import { parseRubSigned, todayIso } from "@solo/finance";
 import { buildTourSteps, TOUR_SEEN_KEY } from "./tour/tourSteps";
 import { TourOverlay } from "./tour/TourOverlay";
 import { AmountsPrivacyProvider, useInactivityMask } from "./privacy";
@@ -243,11 +243,11 @@ function Onboarding({ onStartTour }: { onStartTour: () => void }) {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(today);
   const [error, setError] = useState<string | null>(null);
-  const amountMinor = parseRub(amount);
+  const amountMinor = parseRubSigned(amount);
 
   const submit = () => {
     if (amountMinor === null) {
-      setError("Введите сумму, например 12500 или 12 500,50");
+      setError("Введите сумму, например 12500, 12 500,50 или −2 500");
       return;
     }
     setupFinance({ startAmountMinor: amountMinor, startDate: date });
@@ -271,15 +271,17 @@ function Onboarding({ onStartTour }: { onStartTour: () => void }) {
 
       <Card className="mt-6 p-6" data-tour="setup">
         <div className="flex flex-col gap-4">
-          <Field label="Сумма на руках, ₽" hint="один общий баланс, без разбивки на счета">
+          <Field
+            label="Сумма на руках, ₽"
+            hint="один общий баланс, без разбивки на счета; долг вводите со знаком минус"
+          >
             <TextInput
-              inputMode="decimal"
               value={amount}
               onChange={(event) => {
                 setAmount(event.target.value);
                 setError(null);
               }}
-              placeholder="12 500"
+              placeholder="12 500 или −2 500"
               autoFocus
             />
           </Field>

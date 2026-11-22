@@ -35,14 +35,35 @@ export function formatRubCompact(amountMinor: Money): string {
   return `${sign}${groupThousands(rub)},${String(kop).padStart(2, "0")}`;
 }
 
-export function parseRub(input: string): Money | null {
-  const cleaned = input.replace(/\u00a0|\u2009|\s/g, "").replace(",", ".");
-  if (cleaned === "" || cleaned === "-" || cleaned === ".") return null;
-  if (!/^\d+(\.\d{0,2})?$/.test(cleaned)) return null;
-  const parts = cleaned.split(".");
-  const rub = Number(parts[0] ?? "0");
-  const fraction = (parts[1] ?? "").padEnd(2, "0");
+function parseMinor(input: string, allowNegative: boolean): Money | null {
+  const cleaned = input
+    .replace(/\u00a0|\u2009|\s/g, "")
+    .replace(/[\u2212\u2013\u2014]/g, "-")
+    .replace(",", ".");
+  if (cleaned === "" || cleaned === "-" || cleaned === "." || cleaned === "-.") return null;
+  const match = /^([+-]?)(\d+)(?:\.(\d{0,2}))?$/.exec(cleaned);
+  if (match === null) return null;
+  const sign = match[1] === "-" ? -1 : 1;
+  if (sign < 0 && !allowNegative) return null;
+  const rub = Number(match[2]);
+  const fraction = (match[3] ?? "").padEnd(2, "0");
   const minor = rub * 100 + Number(fraction || "0");
-  if (!Number.isFinite(minor) || minor < 0) return null;
-  return Math.round(minor);
+  if (!Number.isFinite(minor)) return null;
+  return sign * Math.round(minor);
+}
+
+/** Сумма операции: только положительная, направление задаёт категория. */
+export function parseRub(input: string): Money | null {
+  return parseMinor(input, false);
+}
+
+/**
+ * Баланс на руках: допускает отрицательное значение.
+ *
+ * Остаток — не сумма операции: отрицательный остаток означает долг, и это
+ * нормальное стартовое состояние («на руках минус», кредитка в минусе).
+ * У операции такого смысла нет, поэтому для неё остаётся `parseRub`.
+ */
+export function parseRubSigned(input: string): Money | null {
+  return parseMinor(input, true);
 }
