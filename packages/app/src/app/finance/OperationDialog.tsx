@@ -15,7 +15,7 @@ export interface OperationDialogProps {
 export function OperationDialog({ today, operation, presetDate, onClose }: OperationDialogProps) {
   const categories = getCategoriesInUse();
   const isEdit = operation !== undefined;
-  const [entryType, setEntryType] = useState<EntryType>(operation?.entryType ?? "actual");
+  const [entryType, setEntryType] = useState<EntryType>(operation?.entryType ?? "planned");
   const [amount, setAmount] = useState(
     operation === undefined ? "" : String(operation.amountMinor / 100).replace(".", ","),
   );
@@ -86,16 +86,6 @@ export function OperationDialog({ today, operation, presetDate, onClose }: Opera
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setEntryType("actual")}
-              className={`rounded-md border px-3 py-2 text-left text-sm transition-colors ${
-                entryType === "actual" ? "border-text bg-surface-raised text-text" : "border-border text-text-muted"
-              }`}
-            >
-              Факт
-              <span className="mt-0.5 block text-xs text-text-faint">уже случилось</span>
-            </button>
-            <button
-              type="button"
               onClick={() => setEntryType("planned")}
               className={`rounded-md border px-3 py-2 text-left text-sm transition-colors ${
                 entryType === "planned" ? "border-text bg-surface-raised text-text" : "border-border text-text-muted"
@@ -103,6 +93,16 @@ export function OperationDialog({ today, operation, presetDate, onClose }: Opera
             >
               План
               <span className="mt-0.5 block text-xs text-text-faint">на будущую дату</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setEntryType("actual")}
+              className={`rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                entryType === "actual" ? "border-text bg-surface-raised text-text" : "border-border text-text-muted"
+              }`}
+            >
+              Факт
+              <span className="mt-0.5 block text-xs text-text-faint">уже случилось</span>
             </button>
           </div>
         )}
